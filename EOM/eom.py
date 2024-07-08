@@ -21,6 +21,7 @@ def force_to_pwm(force):
     pwm = (-b + sqrt(d))/(2*a)
     return pwm
 
+
 @jit
 def eom2d_crazyflie_closedloop(x, u, param):
 
@@ -46,6 +47,35 @@ def eom2d_crazyflie_closedloop(x, u, param):
                    (param[1]*theta_commanded - x[4])/param[2],           # Theta_dot
                    a_ss*x[5] + b_ss*pwm_commanded],                      # Thrust_state dot
                    dtype =np.float32)
+    return dx
+
+@jit
+def eom2d_mantis(x,u,param):
+    
+    A_t =  -7.4639
+    B_t = 7.4186
+
+    A_pitch = -8.3424
+    B_pitch = 8.444
+    
+    thrust_commanded = 9.81+u[0]*5
+    pitch_commanded = u[1]*pi/6
+    thrust = x[5]
+    pitch = x[4]
+    x_acc = thrust*sin(pitch)
+    z_acc = thrust*cos(pitch)-9.81
+    
+    thrust_dot = A_t*thrust +B_t*thrust_commanded
+    
+    pitch_dot = A_pitch*pitch +B_pitch*pitch_commanded
+    
+    dx = np.array([x[2], 
+                x[3], 
+                x_acc, 
+                z_acc, 
+                pitch_dot,
+                thrust_dot], dtype =np.float32) 
+    
     return dx
 
 @jit

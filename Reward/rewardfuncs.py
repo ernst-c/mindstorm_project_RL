@@ -5,10 +5,7 @@ from math import cos, sin
 # Sparse reward Function used for Inclined landing and Euclidean reward Function used for set-point tracking
 
 
-def sparse_reward2d(next_state, goal_state, observation_space, goal_range, polygon):
-
-    # goal_range is the vector of goal threshold ranges
-    # polygon represents the polygon of the landing platform
+def sparse_reward2d(next_state, goal_state, observation_space, goal_range, polygon, distance, n_ql, constraint_threshold, distance_threshold, timesteps, time_threshold):
 
     quad_arm_length = 0.10
 
@@ -35,8 +32,18 @@ def sparse_reward2d(next_state, goal_state, observation_space, goal_range, polyg
         obstacle_reward = 0
 
     done = (goal_reward == 0)
+    
 
     total_reward = goal_reward + bounds_reward + obstacle_reward
+
+    #fov constraint
+    if timesteps > time_threshold and abs(n_ql[0]) > constraint_threshold:
+        if distance > distance_threshold:
+            pov_reward = -1.5*(abs(n_ql[0])-distance_threshold)
+        else:
+            pov_reward = 0
+        total_reward += pov_reward
+
 
     return total_reward, done
 

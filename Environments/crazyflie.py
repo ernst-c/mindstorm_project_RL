@@ -1,7 +1,7 @@
 
 # Custom gym-like Environment classes for the Crazyflie quadrotor
 
-from EOM.eom import pwm_to_force, force_to_pwm, eom2d_crazyflie_closedloop, eom3d_crazyflie_closedloop
+from EOM.eom import pwm_to_force, force_to_pwm, eom2d_crazyflie_closedloop, eom3d_crazyflie_closedloop, eom2d_mantis
 from EOM.rk4 import runge_kutta4
 import random as r
 import numpy as np
@@ -21,7 +21,7 @@ class Crazyflie_2d_inclined(gym.Env):
     # state = [x, z, xdot, zdot, theta], action = [Thrust, Theta_commanded], param = [mass, gain_const, time_const]
 
     def __init__(self, t_s, goal_state=np.array([0, 1.25, 0, 0, 0], dtype=float),
-                 episode_steps=300, rewardfunc=sparse_reward2d, eom=eom2d_crazyflie_closedloop,
+                 episode_steps=300, rewardfunc=sparse_reward2d, eom=eom2d_mantis,
                  max_pwm_from_hover=15000, param=np.array([0.03303, 1.1094, 0.183806]), rk4=runge_kutta4):
         super(Crazyflie_2d_inclined, self).__init__()
 
@@ -29,7 +29,7 @@ class Crazyflie_2d_inclined(gym.Env):
         self.landing_angle = -pi/7
         self.platform_center = goal_state[0]
         self.platform_center_height = 1.15
-        self.platform_width = 0.8
+        self.platform_width = 0.7
         self.landing_polygon = Polygon([(1, 0), (1, 0.1), (-1, 0.1), (-1, 0)])
         self.final_polygon = Polygon([(self.platform_center-0.5*self.platform_width, self.platform_center_height-
                                      tan(abs(self.landing_angle))*0.5*self.platform_width),
@@ -51,26 +51,41 @@ class Crazyflie_2d_inclined(gym.Env):
         self.T_s = t_s
         self.Timesteps = 0
         self.goal_state = goal_state
+        
+        #for fov constraint:
+        self.constraint_threshold = 1.4 # at this x distance > , the fov constraint is valid, z-direction constraint not used right now
+        self.time_threshold = 1800000 # after this time, the fov constraint is valid
+        self.fov_goal = np.array([0.5, 2.1])
 
         # Used for simulations
-        self.thrust_state = np.array([0])
+        self.thrust_state = np.array([9.81])
         self.real_action = np.array([0, 0])
-        self.hover_pwm = force_to_pwm(self.param[0]*9.81)   # Calculate the theoretical hover thrust
+        self.hover_pwm = force_to_pwm(self.param[0]*9.81)
         self.max_pwm_from_hover = max_pwm_from_hover
 
         self.episode_counter = 0
-        self.goal_range = 0.25 # Starting goal range
-        self.horizontal_spawn_radius = 0.2 # Starting x-ais spawn distance around goal
-        self.vertical_spawn_radius = 0.2 # Starting z-axis spawn distance around goal
+        self.goal_range = 0.25 
+        self.horizontal_spawn_radius = 0.2 
+        self.vertical_spawn_radius = 0.2
         self.spawn_increment = 1/6000
         self.tilt_goal_increment = (abs(self.landing_angle)/6000)
         self.action_space = spaces.Box(low=np.array([-1, -1]),
                                        high=np.array([1, 1]), dtype=np.float)
         # States are: [x, z, x_dot. z_dot, Theta, Theta_dot]
-        self.observation_space = spaces.Box(low=np.array([-3.4, 0,  -10, -10, -pi/3]),
-                                            high=np.array([3.4, 2.4, 10, 10, pi/3]), dtype=np.float)
+        self.observation_space = spaces.Box(low=np.array([-4.5, 0,  -10, -10, -pi/3]),
+                                            high=np.array([0.5, 4.5, 10, 10, pi/3]), dtype=np.float)
         self.reward_range = (-float("inf"), float("inf"))
         self.agent_pos = []
+        load_model = True
+        if load_model:
+            self.Timesteps = 3000000
+            self.horizontal_spawn_radius = 4
+            self.vertical_spawn_radius = 1.2
+            self.goal_range = 0.1
+            self.goal_state[4] = self.landing_angle
+            self.landing_polygon = self.final_polygon
+            
+
         self.reset()
         self.seed()
         self.counter = 0
@@ -78,24 +93,65 @@ class Crazyflie_2d_inclined(gym.Env):
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
+    
+    def find_intersection_point(self, P1, vector1, P2, vector2):
+        x1, y1 = P1
+        u1, v1 = vector1
+        x2, y2 = P2
+        u2, v2 = vector2
+
+        t = ((x2 - x1) * v2 - (y2 - y1) * u2) / (u1 * v2 - u2 * v1)
+        s = ((x2 - x1) * v1 - (y2 - y1) * u1) / (u1 * v2 - u2 * v1)
+
+        intersection_point = (x1 + t * u1, y1 + t * v1)
+
+        return intersection_point
 
     def step(self, action):
-        # Fix PWM increments from its theoretical Hover PWM
-        pwm_commanded = self.hover_pwm + action[0]*self.max_pwm_from_hover
-        # Compute the action vector that goes into the Equations of Motion
-        self.real_action = np.array([pwm_commanded, action[1]], dtype=float)
-        # Add the physically unobservable thrust state for simulation purposes
+        self.real_action = np.array([action[0], action[1]], dtype=float)
         extended_state = np.concatenate((self.agent_pos, self.thrust_state))
-        # Simulate the agent with 1 time step using Runge Kutta 4 and the EOM
         extended_state = extended_state + self.RK4(extended_state, self.real_action, self.EOM, self.param, self.T_s)
-        # Subtract the thrust state to form the actual states we want to use in training
         self.agent_pos = extended_state[0:-1]
         self.thrust_state = np.array([extended_state[-1]])
-        # Clip the agent's position so it doesn't leave the simulation bounds
         self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
         observation = self.agent_pos
+        
+        #fov constraint:
+        self.n_ql = np.array([self.fov_goal[0] - self.agent_pos[0], self.fov_goal[1] - self.agent_pos[1]])
+
+        self.mag_n_ql = np.linalg.norm(self.n_ql)
+
+        self.n_ql_normalized = self.n_ql/abs(self.mag_n_ql)
+
+        self.n_qd_normalized = np.array([np.cos(self.agent_pos[4]), -np.sin(self.agent_pos[4])])
+
+        self.n_ld_normalized = np.array([-self.n_ql_normalized[1], self.n_ql_normalized[0]])
+        
+        if self.n_qd_normalized[1] < self.n_ql_normalized[1]:
+            self.n_ld_normalized = -self.n_ld_normalized
+
+        self.cross_point = self.find_intersection_point(self.agent_pos[0:2], self.n_qd_normalized, self.fov_goal[0:2], self.n_ld_normalized)
+
+        self.n_qd = np.array([self.cross_point[0] - self.agent_pos[0], self.cross_point[1] - self.agent_pos[1]])
+        self.n_ld = np.array([self.cross_point[0] - self.fov_goal[0], self.cross_point[1] - self.fov_goal[1]])
+
+        self.distance = np.sqrt((self.fov_goal[0] - self.cross_point[0])**2 + (self.fov_goal[1] - self.cross_point[1])**2)
+        self.distance_threshold = 0.35*self.mag_n_ql
+
         reward, done = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range,
-                                       self.landing_polygon)
+                                       self.landing_polygon, self.distance, self.n_ql, self.constraint_threshold, self.distance_threshold, self.Timesteps, self.time_threshold)
+        
+
+        point = Point(self.agent_pos[0], self.agent_pos[1])
+        if self.landing_polygon.contains(point):
+            self.agent_pos[2] = 0
+
+        self.counter += 1
+        self.Timesteps += 1
+
+        if self.counter == self.episode_steps:
+            done = True
+
         # Check if the quadrotor touches the landing polygon and diminish horizontal velocity if true
         point = Point(self.agent_pos[0], self.agent_pos[1])
         if self.landing_polygon.contains(point):
@@ -119,25 +175,26 @@ class Crazyflie_2d_inclined(gym.Env):
 
         # Start episodes within a box around the goal state
         self.agent_pos = np.array([r.uniform(self.goal_state[0]-self.horizontal_spawn_radius,
-                                             self.goal_state[0]+self.horizontal_spawn_radius),
-                                   r.uniform(self.goal_state[1]-self.vertical_spawn_radius,
+                                             -1),
+                                   r.uniform(self.goal_state[1],        #-self.vertical_spawn_radius,
                                              self.goal_state[1]+self.vertical_spawn_radius), 0, 0, 0], dtype=np.float32)
 
         while self.landing_polygon.contains(Point(self.agent_pos[0], self.agent_pos[1])):
             self.agent_pos = np.array([np.clip(r.uniform(self.goal_state[0] - self.horizontal_spawn_radius,
-                                                 self.goal_state[0] + self.horizontal_spawn_radius),
+                                                 -1),
                                                self.observation_space.low[0], self.observation_space.high[0]),
                                        np.clip(r.uniform(self.goal_state[1] - self.vertical_spawn_radius,
                                                  self.goal_state[1] + self.vertical_spawn_radius),
                                                self.observation_space.low[1]+0.5, self.observation_space.high[1]), 0, 0, 0],
                                       dtype=np.float32)
         # Spawn Radius Increase
-        self.horizontal_spawn_radius += self.spawn_increment
+        if self.horizontal_spawn_radius <= 4:
+            self.horizontal_spawn_radius += self.spawn_increment
         if self.vertical_spawn_radius <= 1:
             self.vertical_spawn_radius += 0.75 * self.spawn_increment
 
         # Gradually decrease the goal threshold
-        if 7500 >= self.episode_counter >= 2500:
+        if 7500 >= self.episode_counter >= 2500 and self.goal_range >= 0.1:
             self.goal_range -= 0.15/5000
 
         # Slowly incline the goal state
@@ -155,17 +212,25 @@ class Crazyflie_2d_inclined(gym.Env):
                                         self.observation_space.high[1] - 0.1)
 
         self.counter = 0
-
+        self.thrust_state = np.array([9.81])
         return self.agent_pos
 
     def render(self, mode='human'):
+        from gym.envs.classic_control import rendering
 
         # Rendering function
 
         if self.viewer is None:
-            from gym.envs.classic_control import rendering
+            
+            self.n_ql_vector = None
+            self.n_ld_vector = None
+            self.n_qd_vector = None
+            self.distance_threshold_pos_vec = None
+            self.cross_point_marker = None
+
+            
             self.viewer = rendering.Viewer(740, 288)
-            self.viewer.set_bounds(-3.5, 3.5, -0.5, 2.5)
+            self.viewer.set_bounds(-5, 1, -0.5, 5)
 
             rod_quad1 = rendering.make_capsule(self.quad_arms, 0.05)
             rod_quad2 = rendering.make_capsule(self.quad_arms, 0.05)
@@ -303,6 +368,50 @@ class Crazyflie_2d_inclined(gym.Env):
         self.goalcirc1_transform.set_rotation(-self.goal_state[4] - pi / 2)
         self.goalcirc2_transform.set_rotation(-self.goal_state[4] - pi / 2)
         self.goalcirc3_transform.set_rotation(-self.goal_state[4] - pi / 2)
+        
+        #fov constraint
+        if self.viewer is not None:
+            if self.n_ql_vector in self.viewer.geoms:
+                self.viewer.geoms.remove(self.n_ql_vector)
+            if self.n_ld_vector in self.viewer.geoms:
+                self.viewer.geoms.remove(self.n_ld_vector)
+            if self.n_qd_vector in self.viewer.geoms:
+                self.viewer.geoms.remove(self.n_qd_vector)
+            if self.cross_point_marker in self.viewer.geoms:
+                self.viewer.geoms.remove(self.cross_point_marker)
+            if self.distance_threshold_pos_vec in self.viewer.geoms:
+                self.viewer.geoms.remove(self.distance_threshold_pos_vec)
+
+        if self.n_ql[0] > self.constraint_threshold and self.Timesteps > self.time_threshold:
+            self.n_ql_vector = rendering.Line((self.agent_pos[0], self.agent_pos[1]),
+                                        (self.agent_pos[0] + 1 * self.n_ql[0], self.agent_pos[1] + 1 * self.n_ql[1]))
+            self.n_ql_vector.set_color(1, 0, 0)  # Red color for n_ql vector
+                
+            self.n_ld_vector = rendering.Line((self.fov_goal[0], self.fov_goal[1]),
+                                        (self.fov_goal[0] + 1 * self.n_ld[0], self.fov_goal[1] + 1 * self.n_ld[1]))
+            self.n_ld_vector.set_color(0, 1, 0) 
+        
+            self.n_qd_vector = rendering.Line((self.agent_pos[0], self.agent_pos[1]),
+                                        (self.agent_pos[0] + 1 * self.n_qd[0], self.agent_pos[1] + 1 * self.n_qd[1]))
+            self.n_qd_vector.set_color(0, 0, 1)  # Blue color for n_qd vector
+            
+            self.distance_threshold_pos = np.array([self.fov_goal[0]+self.distance_threshold*self.n_ld_normalized[0], self.fov_goal[1]+self.distance_threshold*self.n_ld_normalized[1]])
+            
+            self.distance_threshold_pos_vector = np.array([self.distance_threshold_pos[0] - self.agent_pos[0], self.distance_threshold_pos[1] - self.agent_pos[1]])
+
+            self.distance_threshold_pos_vec = rendering.Line((self.agent_pos[0], self.agent_pos[1]),
+                                        (self.agent_pos[0] + 1 * self.distance_threshold_pos_vector[0], self.agent_pos[1] + 1 * self.distance_threshold_pos_vector[1]))
+
+            self.cross_point_marker = rendering.make_circle(radius=0.05)
+            self.cross_point_marker.set_color(1, 1, 0)  # Yellow color for cross point marker
+            self.cross_point_marker.add_attr(rendering.Transform(translation=(self.cross_point[0], self.cross_point[1])))
+
+            # Add vectors and markers to the viewer
+            self.viewer.add_geom(self.n_ql_vector)
+            self.viewer.add_geom(self.n_ld_vector)
+            self.viewer.add_geom(self.n_qd_vector)
+            self.viewer.add_geom(self.distance_threshold_pos_vec)
+            self.viewer.add_geom(self.cross_point_marker)
 
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
