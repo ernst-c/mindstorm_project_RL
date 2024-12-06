@@ -76,7 +76,7 @@ class Crazyflie_2d_inclined(gym.Env):
                                             high=np.array([0.5, 4.5, 10, 10, pi/3]), dtype=np.float)
         self.reward_range = (-float("inf"), float("inf"))
         self.agent_pos = []
-        load_model = True
+        load_model = False
         if load_model:
             self.Timesteps = 3000000
             self.horizontal_spawn_radius = 4

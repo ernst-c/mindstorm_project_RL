@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     environment = 'CF_2d_inclined'  
     algorithm = 'PPO'
-    training_timesteps = 3000000   
+    training_timesteps = 30000
     t_s = 1/50                    
 
     if environment == 'CF_2d_inclined': 
@@ -42,9 +42,9 @@ if __name__ == '__main__':
     
     #load pre-trained model
     #model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, seed=seed)
-    weights_path = '/home/ernst/thesis/InclinedDroneLander/may11_A20_3000000render.pt'
-    model.policy.load_state_dict(torch.load(weights_path, map_location=device))
-    model.policy.to(device)
+    #weights_path = '/home/ernst/thesis/InclinedDroneLander/may11_A20_3000000render.pt'
+    #model.policy.load_state_dict(torch.load(weights_path, map_location=device))
+    #model.policy.to(device)
     obs = env.reset() 
     
 
