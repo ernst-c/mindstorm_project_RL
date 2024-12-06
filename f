@@ -1,0 +1,156 @@
+[33mcommit 4a04cde518f98574ddbf998f4428cdc74165d40f[m[33m ([m[1;36mHEAD -> [m[1;32mthesis-inclined-landing[m[33m)[m
+Author: Ernst Cancrinus <ecancrinus@sogyo.nl>
+Date:   Fri Dec 6 10:53:54 2024 +0100
+
+    initial commit
+
+[33mcommit cad2efbe71ba9b96b18ab17f4b9767a9cf79d755[m
+Author: ernst123123 <e.l.cancrinus@gmail.com>
+Date:   Mon Jul 8 14:41:15 2024 +0200
+
+    updated readme
+
+[33mcommit 2be5e70195977a06cd4e73a6b806cff853071315[m
+Author: ernst123123 <e.l.cancrinus@gmail.com>
+Date:   Mon Jul 8 14:38:21 2024 +0200
+
+    changed to thesis files
+
+[33mcommit a301375eecc7687e4d6547c5e1bbfc2087d50389[m[33m ([m[1;32mmaster[m[33m)[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Thu Feb 10 14:27:12 2022 +0100
+
+    Update README.md
+
+[33mcommit 76532f66baf032ea0b1c09f23da348c0ae12b793[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Thu Feb 10 14:26:40 2022 +0100
+
+    Update README.md
+
+[33mcommit d11e9334569733076f24c56025e91d5f8cc73961[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Mon Mar 22 16:35:18 2021 +0100
+
+    Update README.md
+
+[33mcommit 62b258c7db1b1befd90d0ef8f046bee116aa6219[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Mon Mar 22 16:34:31 2021 +0100
+
+    Update README.md
+
+[33mcommit 032627620ed7d67c854a5f87ea3b9cf013543b16[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Tue Mar 16 15:45:38 2021 +0100
+
+    Update README.md
+
+[33mcommit a8383db34366605e41346a9d3a0e38f1d45b0acf[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Tue Mar 16 15:44:53 2021 +0100
+
+    Update README.md
+
+[33mcommit 114d4cc2439fa0f5dcf602b3b04a348dba1dbebb[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Tue Mar 16 15:44:10 2021 +0100
+
+    Update README.md
+
+[33mcommit 9022974520700a7770fefa112a88562da2bba3fb[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Tue Mar 16 15:02:31 2021 +0100
+
+    Update README.md
+
+[33mcommit 8f65ff9f82e1f3b571f76492f7ff9d0cfa0ee394[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Tue Mar 16 15:01:42 2021 +0100
+
+    Update README.md
+
+[33mcommit 4c7a267747d4b1bdd39fb4e66ef22be6f9d63100[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Tue Mar 16 15:00:39 2021 +0100
+
+    Update README.md
+
+[33mcommit 3f66110d8bb4ed47a65ac2bf305bf5427267101e[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Tue Mar 16 14:59:35 2021 +0100
+
+    Update README.md
+
+[33mcommit 196bd5f2f82598d772b9fde163b2ec40baa7afb4[m
+Author: Jacob Kooi <jacobkooi92@gmail.com>
+Date:   Sat Mar 13 10:41:02 2021 +0100
+
+    updated EOM and environments
+
+[33mcommit 35958c9d0c2ff1e79960c27cbf563715bb7ecc7e[m
+Author: Jacob Kooi <jacobkooi92@gmail.com>
+Date:   Sat Mar 13 10:39:42 2021 +0100
+
+    main update
+
+[33mcommit 1bbcbc0e2a1aa4ab5610f1ed24b1037159ac63e5[m
+Author: Jacob Kooi <jacobkooi92@gmail.com>
+Date:   Sat Mar 13 10:36:40 2021 +0100
+
+    Final commits
+
+[33mcommit 176ca49725b16880fbceb724d28cb07b5ff71ff7[m
+Author: Jacob Kooi <jacobkooi92@gmail.com>
+Date:   Sat Mar 13 10:35:45 2021 +0100
+
+    Final commits
+
+[33mcommit 677b71f789d750d8044798afa13b7241ab90cc86[m
+Author: Jacob Kooi <jacobkooi92@gmail.com>
+Date:   Wed Mar 3 16:41:25 2021 +0100
+
+    Gifs updated
+
+[33mcommit 754d270ea5c9f71f09fe160ee838caf8fe9800e9[m
+Author: Jacob Kooi <jacobkooi92@gmail.com>
+Date:   Wed Mar 3 10:39:55 2021 +0100
+
+    3d working
+
+[33mcommit 8d0ab3ad5211af194544705a3f20539e70847f34[m
+Merge: 6c2f4b3 6a47727
+Author: Jacob Kooi <jacobkooi92@gmail.com>
+Date:   Wed Mar 3 10:34:15 2021 +0100
+
+    Merge branch 'master' of https://github.com/Jacobkooi/InclinedDroneLander
+
+[33mcommit 6c2f4b3f6c69a4c6bd8cc5a1675395c0f2ef381a[m
+Author: Jacob Kooi <jacobkooi92@gmail.com>
+Date:   Wed Mar 3 10:33:17 2021 +0100
+
+    3d setpoint reworked
+
+[33mcommit 6a477273e7a620dc9e161214841e3e300cd9506e[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Tue Mar 2 21:53:28 2021 +0100
+
+    Update README.md
+
+[33mcommit 926380d1da179bf3e38bca9aaa866b52e63a0ee2[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Tue Mar 2 21:51:38 2021 +0100
+
+    Delete CF_2d_inclined_PPO_3000000Timesteps.gif
+
+[33mcommit bdae9d7aca8d761598b5f3e6ce6996197b74a6f6[m
+Author: Jacob Kooi <jacob_kooi@hotmail.com>
+Date:   Tue Mar 2 21:50:55 2021 +0100
+
+    Create README.md
+
+[33mcommit 2f71b5e6b0e022b11486ac2ec48c382756bd92a6[m
+Author: Jacob Kooi <jacobkooi92@gmail.com>
+Date:   Tue Mar 2 21:22:07 2021 +0100
+
+    Commit the files for Inclined Landing
