@@ -2,8 +2,9 @@ from math import sqrt, pi
 from shapely.geometry import Point
 from math import cos, sin
 import numpy as np
+#maybe break if in polygon?
 
-def sparse_reward2d(next_state, goal_state, observation_space, goal_range, polygon1,polygon2,polygon3, wheelbase,wheel_radius):
+def sparse_reward2d(next_state, goal_state, observation_space, goal_range, polygons, wheelbase,wheel_radius):
 
     #goal_reward = -1 * int((abs(next_state[0] - goal_state[0]) > goal_range or
     #                        abs(next_state[1] - goal_state[1]) > goal_range
@@ -38,10 +39,12 @@ def sparse_reward2d(next_state, goal_state, observation_space, goal_range, polyg
     # Check if polygon contains any rotated point
     obstacle_reward = 0
     for idx, rotated_point in enumerate(rotated_points):
-        shapely_point = Point(rotated_point[0], rotated_point[1])  # Convert to Shapely Point
-        if polygon1.contains(shapely_point) or polygon2.contains(shapely_point) or polygon3.contains(shapely_point):
-            obstacle_reward = -10
-            break
+        shapely_point = Point(rotated_point[0], rotated_point[1])
+        for polygon in polygons:
+            if polygon.contains(shapely_point):
+                obstacle_reward = -10
+                break
+
     total_reward = goal_reward_distance + bounds_reward + obstacle_reward
     done = bool((abs(next_state[0] - goal_state[0]) < goal_range) and (abs(next_state[1] - goal_state[1]) < goal_range))
     return total_reward, done
