@@ -2,110 +2,57 @@ from numba import jit
 import numpy as np
 from math import cos, sin, pi, sqrt
 
-# Equations of motion used for the 2d and 3d Crazyflie 2.1 quadrotor
-# Use jit decorator to greatly increase function speed
-
 @jit
-def pwm_to_force(pwm):
-    # Modified formula from Julian Forster's Crazyflie identification
-    force = 4*(2.130295e-11*(pwm**2) + 1.032633e-6*pwm+5.485e-4)
-    return force
-
-@jit
-def force_to_pwm(force):
-    # Just the inversion of pwm_to_force
-    a = 4*2.130295e-11
-    b = 4*1.032633e-6
-    c = 5.485e-4 - force
-    d = b**2 - 4*a*c
-    pwm = (-b + sqrt(d))/(2*a)
-    return pwm
-
-
-@jit
-def eom2d_crazyflie_closedloop(x, u, param):
-
-    # States are: [x, z, x_dot. z_dot, Theta, thrust_state]
-    # u = [PWM_c, Theta_c] = [10000 to 60000, -1 to 1]
-    # param = [mass, gain constant, time constant]
-
-    pwm_commanded = u[0]
-    a_ss = -15.4666                                                  # State space A
-    b_ss = 1                                                         # State space B
-    c_ss = 3.5616e-5                                                 # State space C
-    d_ss = 7.2345e-8                                                 # State space AD
-    force = 4*(c_ss*x[5] + d_ss*pwm_commanded)                       # Thrust force
-    # force *= 0.88                                                  # This takes care of the motor thrust gap sim2real
-    pwm_drag = force_to_pwm(force)                                   # Symbolic PWM to approximate rotor drag
-    dragx = 9.1785e-7*4*(0.04076521*pwm_drag + 380.8359)             # Fa,x
-    dragz = 10.311e-7*4*(0.04076521*pwm_drag + 380.8359)             # Fa,z
-    theta_commanded = u[1]*pi/6                                      # Commanded theta in radians
-    dx = np.array([x[2],                                                 # x_dot
-                   x[3],                                                 # z_dot
-                   (sin(x[4])*(force-dragx*x[2]))/param[0],              # x_ddot
-                   (cos(x[4])*(force-dragz*x[3]))/param[0] - 9.81,       # z_ddot
-                   (param[1]*theta_commanded - x[4])/param[2],           # Theta_dot
-                   a_ss*x[5] + b_ss*pwm_commanded],                      # Thrust_state dot
-                   dtype =np.float32)
+def simple_dynamic_model(x,u, param):
+    v_body_des = u[0]
+    alpha_des = u[1]*0.9*pi
+    alpha = x[4]
+    v_body_current = np.sqrt(x[2]**2+x[3]**2)
+    v_body_new = 0.1*v_body_des+0.9*v_body_current
+    alpha_new = alpha_des*0.1+alpha*0.9
+    x_dot_new = sin(alpha_new)*v_body_new
+    y_dot_new = cos(alpha_new)*v_body_new
+    dx = [x_dot_new,y_dot_new,x_dot_new-x[2],y_dot_new-x[3],alpha,0]
     return dx
 
 @jit
-def eom2d_mantis(x,u,param):
-    
-    A_t =  -7.4639
-    B_t = 7.4186
+def dynamic_model_mindstorm(x,u, param):
+    wheel_base = param[0]   # distance between the wheels
+    wheel_radius = param[1]# radius of the wheels
+    T_s = 1/50
+    # Unpack parameters
 
-    A_pitch = -8.3424
-    B_pitch = 8.444
-    
-    thrust_commanded = 9.81+u[0]*5
-    pitch_commanded = u[1]*pi/6
-    thrust = x[5]
-    pitch = x[4]
-    x_acc = thrust*sin(pitch)
-    z_acc = thrust*cos(pitch)-9.81
-    
-    thrust_dot = A_t*thrust +B_t*thrust_commanded
-    
-    pitch_dot = A_pitch*pitch +B_pitch*pitch_commanded
-    
-    dx = np.array([x[2], 
-                x[3], 
-                x_acc, 
-                z_acc, 
-                pitch_dot,
-                thrust_dot], dtype =np.float32) 
-    
-    return dx
+    r = wheel_radius
+    L = wheel_base
+    # Current state (x_pos, y_pos, x_dot, y_dot, alpha)
+    x_pos, y_pos, x_dot, y_dot, alpha, max_range = x
 
-@jit
-def eom3d_crazyflie_closedloop(x, u, param):
+    # Motor inputs (PWM commands for left and right motors)
+    l_pwm, r_pwm = u*10
 
-    # States are: [x, y, z, x_dot, y_dot, z_dot, phi, theta, thrust_state]
-    # u = [PWM_c, Phi_c, Theta_c] = [10000 to 60000, -1 to 1, -1 to 1]
-    # param = [mass, gain constant, time constant]
-    # Note that we use the rotation matrices convention according to the paper, with yaw = 0.
+    v_l = l_pwm * wheel_radius  # Left wheel linear velocity
+    v_r = r_pwm * wheel_radius  # Right wheel linear velocity
 
-    pwm_commanded = u[0]
-    a_ss = -15.4666                                                  # State space A
-    b_ss = 1                                                         # State space B
-    c_ss = 3.5616e-5                                                 # State space C
-    d_ss = 7.2345e-8                                                 # State space AD
-    force = 4*(c_ss*x[8] + d_ss*pwm_commanded)                       # Thrust force
-    # force *= 0.88                                                  # This takes care of the motor thrust gap sim2real
-    pwm_drag = force_to_pwm(force)                                   # Symbolic PWM to approximate rotor drag
-    dragxy = 9.1785e-7*4*(0.04076521*pwm_drag + 380.8359)            # Fa,xy
-    dragz = 10.311e-7*4*(0.04076521*pwm_drag + 380.8359)             # Fa,z
-    phi_commanded = u[1]*pi/6                                        # Commanded phi in radians
-    theta_commanded = u[2]*pi/6                                      # Commanded theta in radians
-    dx = np.array([x[3],                                                          # x_dot
-                   x[4],                                                          # y_dot
-                   x[5],                                                          # z_dot
-                   (sin(x[7]))*(force - dragxy*x[3])/param[0],                     # x_ddot
-                   (sin(x[6])*cos(x[7])) * (force - dragxy*x[4])/param[0],        # y_ddot
-                   (cos(x[6])*cos(x[7])) * (force - dragz*x[5])/param[0] - 9.81,  # z_ddot
-                   (param[1]*phi_commanded - x[6])/param[2],                      # Phi_dot
-                   (param[1]*theta_commanded - x[7]) / param[2],                # Theta_dot
-                   a_ss*x[8] + b_ss*pwm_commanded],                               # Thrust_state dot
-                  dtype=np.float32)
+    # Compute linear and angular velocity of the robot
+    v = (v_l + v_r) / 2  # Linear velocity
+    omega = (v_l - v_r) / wheel_base  # Angular velocity
+
+    # Update position in the world frame
+    x_dot = T_s * v * np.sin(alpha)
+    y_dot = T_s * v * np.cos(alpha)
+
+    # Update orientation
+    alpha_dot = T_s * omega
+
+    """
+    print("pwms", l_pwm, r_pwm)
+    print("vl vr", v_l, v_r)
+    print("v",v)
+    print("omega", omega)
+    print("x_dot", x_dot)
+    print("y_dot", y_dot)
+    print("alpha dot", alpha_dot)
+    """
+    dx = np.array([x_dot, y_dot, 0, 0, alpha_dot,0])  # Linear velocities + accelerations + angular velocity
+
     return dx

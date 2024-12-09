@@ -1,11 +1,19 @@
-from Environments.crazyflie import Crazyflie_2d_inclined
+from Environments.mindstormBot import mindstormBot
 import numpy as np
 import torch
-from Reward.rewardfuncs import sparse_reward2d, euclidean_reward3d
+from Reward.rewardfuncs import sparse_reward2d
 from math import pi
 from Save_Gif.save_gif import save_frames_as_gif
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3 import PPO, SAC, A2C, TD3
+
+"""
+todo:
+add range finder
+improve wall create obstacle
+fix rotation bug at beginning
+
+"""
 
 import random
 import os
@@ -14,13 +22,13 @@ render = True
 
 if __name__ == '__main__':
 
-    environment = 'CF_2d_inclined'  
+    environment = 'mindstormBot'
     algorithm = 'PPO'
-    training_timesteps = 30000
+    training_timesteps = 750000
     t_s = 1/50                    
 
-    if environment == 'CF_2d_inclined': 
-        env = Crazyflie_2d_inclined(t_s, rewardfunc=sparse_reward2d)
+    if environment == 'mindstormBot':
+        env = mindstormBot(t_s, rewardfunc=sparse_reward2d)
 
     check_env(env)
 
@@ -46,20 +54,22 @@ if __name__ == '__main__':
     #model.policy.load_state_dict(torch.load(weights_path, map_location=device))
     #model.policy.to(device)
     obs = env.reset() 
-    
 
-    for iteration in range(1, 10 + 1):
-        model.learn(training_timesteps/30, reset_num_timesteps=False)
+    for iteration in range(1, 15):
+        model.learn(training_timesteps/15, reset_num_timesteps=False)
         
         if iteration % 1 == 0:
             try:
                 print(f"Rendering episode at iteration {iteration}") 
-                for i in range(900):
+                for i in range(1200):
                 
                     action, _states = model.predict(obs, deterministic=True)
                     if i % 10 == 0:
                         print("action and number of timesteps: ", i, action)
-                    obs, reward, done, info = env.step(action)  
+                    obs, reward, done, info = env.step(action)
+                    if i % 10 == 0:
+                        print("observation: ",obs)
+
                     env.render(mode='human')
                     if done:
                         obs = env.reset()
@@ -68,9 +78,9 @@ if __name__ == '__main__':
                 print(f"An error occurred: {e}. Skipping to the next iteration.")
                 break
         
-        if iteration % 5 == 0:    
+        if iteration % 3 == 0:
             try:
-                run_name = "may27B"+str(iteration)+"_"+str(training_timesteps)
+                run_name = "mindStormDec9_1222"+str(iteration)+"_"+str(training_timesteps)
                 torch.save(model.policy.state_dict(), run_name + 'render.pt')
             except Exception as e:
                 print(f"An error occurred: {e}. Skipping to the next iteration.")
