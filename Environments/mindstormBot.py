@@ -229,7 +229,9 @@ class mindstormBot(gym.Env):
         self.agent_pos[1] = np.clip(self.agent_pos[1], self.observation_space.low[1] + 1,
                                         self.observation_space.high[1] - 0.1)
         self.counter = 0
-        return self.agent_pos
+        info = {}
+
+        return self.agent_pos, info
 
     def render(self, mode='human'):
         from gym.envs.classic_control import rendering
