@@ -14,8 +14,8 @@ import random as r
 import numpy as np
 import gymnasium as gym
 from os import path
-from gym.utils import seeding
-from gym import spaces
+from gymnasium.utils import seeding
+from gymnasium import spaces
 from math import pi, cos, sin, tan
 from Reward.rewardfuncs import sparse_reward2d
 from shapely.geometry import Point
