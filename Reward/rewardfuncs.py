@@ -2,7 +2,6 @@ from math import sqrt, pi
 from shapely.geometry import Point
 from math import cos, sin
 import numpy as np
-#maybe break if in polygon?
 
 def sparse_reward2d(next_state, goal_state, observation_space, goal_range, polygons, wheelbase,wheel_radius):
 
@@ -19,12 +18,12 @@ def sparse_reward2d(next_state, goal_state, observation_space, goal_range, polyg
     #see ... for explanation of points
     points = [
         np.array([next_state[0], next_state[1]]),  # point1
-        #np.array([next_state[0] + wheelbase / 2, next_state[1]]),  # point2
-        #np.array([next_state[0] - wheelbase / 2, next_state[1]]),  # point3
-        #np.array([next_state[0] + wheelbase / 2, next_state[1] + wheel_radius]),  # point4
-        #np.array([next_state[0] - wheelbase / 2, next_state[1] + wheel_radius]),  # point5
-        #np.array([next_state[0] + wheelbase / 2, next_state[1] - wheel_radius]),  # point6
-        #np.array([next_state[0] - wheelbase / 2, next_state[1] - wheel_radius])   # point7
+        np.array([next_state[0] + wheelbase / 2, next_state[1]]),  # point2
+        np.array([next_state[0] - wheelbase / 2, next_state[1]]),  # point3
+        np.array([next_state[0] + wheelbase / 2, next_state[1] + wheel_radius]),  # point4
+        np.array([next_state[0] - wheelbase / 2, next_state[1] + wheel_radius]),  # point5
+        np.array([next_state[0] + wheelbase / 2, next_state[1] - wheel_radius]),  # point6
+        np.array([next_state[0] - wheelbase / 2, next_state[1] - wheel_radius])   # point7
     ]
 
     # Define the rotation matrix

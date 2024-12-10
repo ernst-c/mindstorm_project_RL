@@ -61,10 +61,7 @@ class mindstormBot(gym.Env):
 
         # Create a polygon representing the wall by buffering the LineString
         self.polygons = [wall_center.buffer(self.wall_thickness / 2, cap_style=2), wall_center.buffer(self.wall_thickness / 2, cap_style=2), wall_center.buffer(self.wall_thickness / 2, cap_style=2)]
-        #self.wall_polygon1 = wall_center.buffer(self.wall_thickness / 2, cap_style=2)
-        #self.wall_polygon2 = wall_center.buffer(self.wall_thickness / 2, cap_style=2)
-        #self.wall_polygon3 = wall_center.buffer(self.wall_thickness / 2, cap_style=2)
-        
+
         #add long y-direction walls as border of field:
         self.polygons.append(LineString([(-3,-5),(-3,5)]).buffer(self.wall_thickness / 2, cap_style=2))
         self.polygons.append(LineString([(3,-5),(3,5)]).buffer(self.wall_thickness / 2, cap_style=2))
@@ -148,7 +145,11 @@ class mindstormBot(gym.Env):
         self.real_action = np.array([action[0], action[1]], dtype=float)
         #fix orientation value issues for training
         self.agent_pos[4] = (self.agent_pos[4] + np.pi) % (2 * np.pi) - np.pi
-        self.agent_pos = self.agent_pos + self.EOM(self.agent_pos, self.real_action, self.param)#self.RK4(self.agent_pos, self.real_action, self.EOM, self.T_s)
+        movement = self.EOM(self.agent_pos, self.real_action, self.param)
+        for polygon in self.polygons:
+            if (polygon.contains(self.agent_pos[0]+movement[0],self.agent_pos[1]+movement[1]):
+                movement[0],movement[1] = 0,0;
+        self.agent_pos = self.agent_pos + movement #self.RK4(self.agent_pos, self.real_action, self.EOM, self.T_s)
         self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
 
         for polygon in self.polygons:

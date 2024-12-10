@@ -78,9 +78,9 @@ if __name__ == '__main__':
                 print(f"An error occurred: {e}. Skipping to the next iteration.")
                 break
         
-        if iteration % 3 == 0:
+        if iteration % 15 == 0:
             try:
-                run_name = "mindStormDec9_1222"+str(iteration)+"_"+str(training_timesteps)
+                run_name = "dec10_1546"+str(iteration)+"_"+str(training_timesteps)
                 torch.save(model.policy.state_dict(), run_name + 'render.pt')
             except Exception as e:
                 print(f"An error occurred: {e}. Skipping to the next iteration.")
@@ -95,7 +95,7 @@ if __name__ == '__main__':
         if done:
             obs = env.reset()
     # Save Gif
-    run_name = "may27B"+str(iteration)+"_"+str(training_timesteps)
+    run_name = "dec10_1546"+str(iteration)+"_"+str(training_timesteps)
 
     save_frames_as_gif(frames, filename=run_name+'.gif')
 
