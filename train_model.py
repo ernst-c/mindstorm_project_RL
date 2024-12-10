@@ -71,7 +71,7 @@ if __name__ == '__main__':
                     #    print("observation: ",obs)
 
                     env.render(mode='human')
-                    if terminated or truncated::
+                    if terminated or truncated:
                         obs, info = env.reset()
                 env.close()
             except Exception as e:
