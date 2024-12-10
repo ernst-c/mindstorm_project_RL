@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     environment = 'mindstormBot'
     algorithm = 'PPO'
-    training_timesteps = 750000
+    training_timesteps = 75000
     t_s = 1/50                    
 
     if environment == 'mindstormBot':
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     #weights_path = '/home/ernst/thesis/InclinedDroneLander/may11_A20_3000000render.pt'
     #model.policy.load_state_dict(torch.load(weights_path, map_location=device))
     #model.policy.to(device)
-    obs = env.reset() 
+    obs, info = env.reset()
 
     for iteration in range(1, 15):
         model.learn(training_timesteps/15, reset_num_timesteps=False)
