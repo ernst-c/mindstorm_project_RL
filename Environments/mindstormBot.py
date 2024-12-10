@@ -157,17 +157,17 @@ class mindstormBot(gym.Env):
                 self.agent_pos[5] = distance_of_object
         
         observation = self.agent_pos
-        reward, done = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range, self.polygons, self.wheel_base, self.wheel_radius)
+        reward, terminated = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range, self.polygons, self.wheel_base, self.wheel_radius)
         point = Point(self.agent_pos[0], self.agent_pos[1])
         self.counter += 1
         self.Timesteps += 1
 
         if self.counter == self.episode_steps:
-            done = True
+            truncated = True
 
         info = {}
 
-        return observation, reward, done, info
+        return observation, reward, terminated,truncated, info
 
     def reset(self, seed=None):
 
