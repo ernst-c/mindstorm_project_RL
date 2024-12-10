@@ -66,13 +66,13 @@ if __name__ == '__main__':
                     action, _states = model.predict(obs, deterministic=True)
                     #if i % 10 == 0:
                     #    print("action and number of timesteps: ", i, action)
-                    obs, reward, done, info = env.step(action)
+                    obs, reward, terminated, truncated, info = env.step(action)
                     #if i % 10 == 0:
                     #    print("observation: ",obs)
 
                     env.render(mode='human')
-                    if done:
-                        obs = env.reset()
+                    if terminated or truncated::
+                        obs, info = env.reset()
                 env.close()
             except Exception as e:
                 print(f"An error occurred: {e}. Skipping to the next iteration.")
@@ -90,10 +90,10 @@ if __name__ == '__main__':
     # save gif at end of training
     for i in range(2400):
         action, _states = model.predict(obs, deterministic=True)
-        obs, reward, done, info = env.step(action)
+        obs, reward, terminated, truncated, info = env.step(action)
         frames.append(env.render(mode='rgb_array'))
-        if done:
-            obs = env.reset()
+        if terminated or truncated:
+            obs, info = env.reset()
     # Save Gif
     run_name = "may27B"+str(iteration)+"_"+str(training_timesteps)
 
