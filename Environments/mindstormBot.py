@@ -169,7 +169,7 @@ class mindstormBot(gym.Env):
 
         return observation, reward, done, info
 
-    def reset(self):
+    def reset(self, seed=None):
 
         self.episode_counter += 1
         """
