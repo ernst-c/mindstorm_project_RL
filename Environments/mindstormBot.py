@@ -78,13 +78,13 @@ class mindstormBot(gym.Env):
         self.vertical_spawn_radius = 0.25
         #left wheel pwm, right wheel pwm;
         self.action_space = spaces.Box(low=np.array([-1, -1]),
-                                       high=np.array([1, 1]), dtype=np.float)
+                                       high=np.array([1, 1]), dtype=float)
         # States are: [x, z, x_dot. z_dot, Theta, Theta_dot]
         # new states are: [x,y, x_dot, z_dot, alpha]
         self.observation_space = spaces.Box(
             low=np.array([-5, -5, -20, -20, -2*pi,0]),
             high=np.array([5, 5, 20, 20, 2*pi,self.max_range]),
-            dtype=np.float
+            dtype=float
         )
         self.reward_range = (-float("inf"), float("inf"))
         self.agent_pos = []
@@ -180,7 +180,7 @@ class mindstormBot(gym.Env):
         """
         self.agent_pos = np.array([r.uniform(self.goal_state[0]-self.horizontal_spawn_radius,self.goal_state[0]+self.horizontal_spawn_radius),
                                    r.uniform(self.goal_state[1]-self.vertical_spawn_radius,self.goal_state[1]),
-                                   0, 0, 0, self.max_range], dtype=np.float32)
+                                   0, 0, 0, self.max_range], dtype=float32)
 
         while any(polygon.contains(Point(self.agent_pos[0], self.agent_pos[1])) for polygon in self.polygons):
             self.agent_pos = np.array(
@@ -191,7 +191,7 @@ class mindstormBot(gym.Env):
                                 self.goal_state[1]),
                         self.observation_space.low[1], self.observation_space.high[1]),
                 0, 0, 0, self.max_range],
-                dtype=np.float32)
+                dtype=float32)
 
         """
         while self.landing_polygon.contains(Point(self.agent_pos[0], self.agent_pos[1])):
