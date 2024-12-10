@@ -61,14 +61,14 @@ if __name__ == '__main__':
         if iteration % 1 == 0:
             try:
                 print(f"Rendering episode at iteration {iteration}") 
-                for i in range(1200):
+                for i in range(600):
                 
                     action, _states = model.predict(obs, deterministic=True)
-                    if i % 10 == 0:
-                        print("action and number of timesteps: ", i, action)
+                    #if i % 10 == 0:
+                    #    print("action and number of timesteps: ", i, action)
                     obs, reward, done, info = env.step(action)
-                    if i % 10 == 0:
-                        print("observation: ",obs)
+                    #if i % 10 == 0:
+                    #    print("observation: ",obs)
 
                     env.render(mode='human')
                     if done:

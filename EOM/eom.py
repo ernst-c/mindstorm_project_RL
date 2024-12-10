@@ -28,7 +28,7 @@ def dynamic_model_mindstorm(x,u, param):
     x_pos, y_pos, x_dot, y_dot, alpha, max_range = x
 
     # Motor inputs (PWM commands for left and right motors)
-    l_pwm, r_pwm = u*10
+    l_pwm, r_pwm = u*20
 
     v_l = l_pwm * wheel_radius  # Left wheel linear velocity
     v_r = r_pwm * wheel_radius  # Right wheel linear velocity

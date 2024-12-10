@@ -9,7 +9,8 @@ def sparse_reward2d(next_state, goal_state, observation_space, goal_range, polyg
     #goal_reward = -1 * int((abs(next_state[0] - goal_state[0]) > goal_range or
     #                        abs(next_state[1] - goal_state[1]) > goal_range
     #                        ))
-    goal_reward_distance = -1 * (abs(goal_state[0] - next_state[0])+abs(goal_state[1] - next_state[1]))
+    distance_to_goal = ((goal_state[0] - next_state[0])**2 + (goal_state[1] - next_state[1])**2)**0.5
+    goal_reward_distance = -1 * distance_to_goal
     bounds_reward = -1 * int((abs(next_state[0] - observation_space.high[0]) < 0.05 or
                         abs(next_state[0] - observation_space.low[0]) < 0.05 or
                         abs(next_state[1] - observation_space.high[1]) < 0.05 or
@@ -42,9 +43,10 @@ def sparse_reward2d(next_state, goal_state, observation_space, goal_range, polyg
         shapely_point = Point(rotated_point[0], rotated_point[1])
         for polygon in polygons:
             if polygon.contains(shapely_point):
-                obstacle_reward = -10
+                obstacle_reward = -30
                 break
 
     total_reward = goal_reward_distance + bounds_reward + obstacle_reward
-    done = bool((abs(next_state[0] - goal_state[0]) < goal_range) and (abs(next_state[1] - goal_state[1]) < goal_range))
+    done = bool(((next_state[0] - goal_state[0])**2 + (next_state[1] - goal_state[1])**2) < (goal_range+0.25)**2)
+    #done = bool((abs(next_state[0] - goal_state[0]) < goal_range) and (abs(next_state[1] - goal_state[1]) < goal_range))
     return total_reward, done

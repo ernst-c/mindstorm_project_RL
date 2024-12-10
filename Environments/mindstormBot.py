@@ -27,8 +27,8 @@ class mindstormBot(gym.Env):
 
     # state = [x, z, xdot, zdot, theta], action = [Thrust, Theta_commanded], param = [mass, gain_const, time_const]
 
-    def __init__(self, t_s, goal_state=np.array([0, 1, 0, 0, 0], dtype=float),
-                 episode_steps=300, rewardfunc=sparse_reward2d, eom=dynamic_model_mindstorm,
+    def __init__(self, t_s, goal_state=np.array([0, 3.5, 0, 0, 0], dtype=float),
+                 episode_steps=450, rewardfunc=sparse_reward2d, eom=dynamic_model_mindstorm,
                  param=np.array([0.3,0.1]), rk4=runge_kutta4):
         #params: [wheel base, wheel radius]
         self.wheel_base = param[0]
@@ -52,12 +52,12 @@ class mindstormBot(gym.Env):
         # Define the wall's start and end points
         start_point = (-20,0)
 
-        self.wall_length = 0
+        self.wall_length = 0.1
         # Create a LineString representing the wall's center line
         wall_center = LineString([start_point, (start_point[0]+self.wall_length,start_point[1])])
 
         # Define the wall's thickness (0.2 in this case)
-        self.wall_thickness = 0.25
+        self.wall_thickness = 0.2
 
         # Create a polygon representing the wall by buffering the LineString
         self.polygons = [wall_center.buffer(self.wall_thickness / 2, cap_style=2), wall_center.buffer(self.wall_thickness / 2, cap_style=2), wall_center.buffer(self.wall_thickness / 2, cap_style=2)]
@@ -72,8 +72,8 @@ class mindstormBot(gym.Env):
         self.polygons.append(LineString([(-3,5),(3,5)]).buffer(self.wall_thickness / 2, cap_style=2))
         # Used for simulations
         self.episode_counter = 0
-        self.goal_range = 0.5
-        self.spawn_increment = 1/2000
+        self.goal_range = 1
+        self.spawn_increment = 1/1500
         self.horizontal_spawn_radius = 0.25
         self.vertical_spawn_radius = 0.25
         #left wheel pwm, right wheel pwm;
@@ -82,8 +82,8 @@ class mindstormBot(gym.Env):
         # States are: [x, z, x_dot. z_dot, Theta, Theta_dot]
         # new states are: [x,y, x_dot, z_dot, alpha]
         self.observation_space = spaces.Box(
-            low=np.array([-5, -5, -5, -5, -2*pi,0]),
-            high=np.array([5, 5, 5, 5, 2*pi,self.max_range]),
+            low=np.array([-5, -5, -20, -20, -2*pi,0]),
+            high=np.array([5, 5, 20, 20, 2*pi,self.max_range]),
             dtype=np.float
         )
         self.reward_range = (-float("inf"), float("inf"))
@@ -204,23 +204,23 @@ class mindstormBot(gym.Env):
                                       dtype=np.float32)
         """
         # Spawn Radius Increase
-        if self.horizontal_spawn_radius <= 4:
+        if self.horizontal_spawn_radius <= 2:
             self.horizontal_spawn_radius += self.spawn_increment
-        if self.vertical_spawn_radius <= 4:
+        if self.vertical_spawn_radius <= 7:
             self.vertical_spawn_radius += self.spawn_increment
-        if self.wall_length < 1:
-            self.wall_length += self.spawn_increment
+        if self.wall_length < 3:
+            self.wall_length += self.spawn_increment #self.spawn_increment
         # Gradually decrease the goal threshold
         #if 7500 >= self.episode_counter >= 2500 and self.goal_range >= 0.1:
         #    self.goal_range -= 0.15/5000
         if self.episode_counter > 1000:
-            start_point = (-0.5,0)
+            start_point = (-3, 1.5)
             self.polygons[0] = self.get_wall_polygon(self.wall_center(start_point))
-        if self.episode_counter > 2000:
-            start_point = (0,-1)
+        if self.episode_counter > 1750:
+            start_point = (0,-0.5)
             self.polygons[1] = self.get_wall_polygon(self.wall_center(start_point))
-        if self.episode_counter > 3000:
-            start_point = (-0.5,-2)
+        if self.episode_counter > 2500:
+            start_point = (-3,-2)
             self.polygons[2] = self.get_wall_polygon(self.wall_center(start_point))
         
         # Clip position to be in the bounds of the field
@@ -237,7 +237,7 @@ class mindstormBot(gym.Env):
         if self.viewer is None:
             # Initialize the viewer
             self.viewer = rendering.Viewer(740, 740)
-            self.viewer.set_bounds(-5, 5, -5, 5)
+            self.viewer.set_bounds(-4, 4, -5, 5)
 
             # Chassis (rectangle)
             l, r, t, b = -self.wheel_base / 2, self.wheel_base / 2, self.wheel_radius, -self.wheel_radius
