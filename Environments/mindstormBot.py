@@ -161,7 +161,7 @@ class mindstormBot(gym.Env):
         point = Point(self.agent_pos[0], self.agent_pos[1])
         self.counter += 1
         self.Timesteps += 1
-
+        truncated = False
         if self.counter == self.episode_steps:
             truncated = True
 
