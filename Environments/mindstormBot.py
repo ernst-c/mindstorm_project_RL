@@ -234,7 +234,7 @@ class mindstormBot(gym.Env):
         return self.agent_pos, info
 
     def render(self, mode='human'):
-        from gym.envs.classic_control import rendering
+        #from gymnasium.envs.classic_control import rendering
 
         if self.viewer is None:
             # Initialize the viewer
