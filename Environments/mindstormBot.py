@@ -12,7 +12,7 @@ from EOM.eom import dynamic_model_mindstorm, simple_dynamic_model
 from EOM.rk4 import runge_kutta4
 import random as r
 import numpy as np
-import gym
+import gymnasium as gym
 from os import path
 from gym.utils import seeding
 from gym import spaces
