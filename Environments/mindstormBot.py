@@ -21,7 +21,7 @@ from Reward.rewardfuncs import sparse_reward2d
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import LineString
-
+from gymnasium.envs.classic_control import rendering
 class mindstormBot(gym.Env):
     metadata = {'render.modes': ['human']}
 
@@ -234,8 +234,6 @@ class mindstormBot(gym.Env):
         return self.agent_pos, info
 
     def render(self, mode='human'):
-        #from gymnasium.envs.classic_control import rendering
-
         if self.viewer is None:
             # Initialize the viewer
             self.viewer = rendering.Viewer(740, 740)
@@ -272,10 +270,7 @@ class mindstormBot(gym.Env):
             self.viewer.add_geom(wheel_right)
             self.viewer.add_geom(goal)
 
-            # Initialize a list to track dynamic geometries
-            self.dynamic_geometries = []
-
-        #add wall
+        # Add wall
         for polygon in self.polygons:
             wall_coords = list(polygon.exterior.coords)
             for i in range(len(wall_coords) - 1):
@@ -311,12 +306,12 @@ class mindstormBot(gym.Env):
 
         points = [
             np.array([self.agent_pos[0], self.agent_pos[1]]),
-            np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1]]), 
-            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1]]), 
+            np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1]]),
+            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1]]),
             np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1] + self.wheel_radius]),
-            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1] + self.wheel_radius]), 
-            np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1] - self.wheel_radius]), 
-            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1] - self.wheel_radius])  
+            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1] + self.wheel_radius]),
+            np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1] - self.wheel_radius]),
+            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1] - self.wheel_radius])
         ]
 
         rotation_matrix = np.array([
@@ -336,7 +331,7 @@ class mindstormBot(gym.Env):
             self.dynamic_geometries.append(circle)
 
         shortest_ray_segment = None
-        min_length = float('inf') 
+        min_length = float('inf')
 
         ray_start = Point(self.agent_pos[0], self.agent_pos[1])
         ray_end = Point(
@@ -355,7 +350,7 @@ class mindstormBot(gym.Env):
                         (ray_start.x, ray_start.y),
                         (intersection_point[0], intersection_point[1])
                     )
-                    ray_segment.set_color(0.0, 1.0, 0.0) 
+                    ray_segment.set_color(0.0, 1.0, 0.0)
                     ray_length = ray_start.distance(intersection)
                 else:
                     ray_segment = rendering.Line(
@@ -378,7 +373,13 @@ class mindstormBot(gym.Env):
 
         self.viewer.add_geom(shortest_ray_segment)
         self.dynamic_geometries.append(shortest_ray_segment)
-        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+
+        # For gymnasium, the render method now directly returns an image in 'rgb_array' mode
+        if mode == 'rgb_array':
+            return self.viewer.render(return_rgb_array=True)
+        elif mode == 'human':
+            self.viewer.render()
+            return None
 
     def close(self):
         if self.viewer:
