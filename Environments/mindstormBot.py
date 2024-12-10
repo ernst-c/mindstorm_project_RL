@@ -180,7 +180,7 @@ class mindstormBot(gym.Env):
         """
         self.agent_pos = np.array([r.uniform(self.goal_state[0]-self.horizontal_spawn_radius,self.goal_state[0]+self.horizontal_spawn_radius),
                                    r.uniform(self.goal_state[1]-self.vertical_spawn_radius,self.goal_state[1]),
-                                   0, 0, 0, self.max_range], dtype=float32)
+                                   0, 0, 0, self.max_range], dtype=float)
 
         while any(polygon.contains(Point(self.agent_pos[0], self.agent_pos[1])) for polygon in self.polygons):
             self.agent_pos = np.array(
@@ -191,7 +191,7 @@ class mindstormBot(gym.Env):
                                 self.goal_state[1]),
                         self.observation_space.low[1], self.observation_space.high[1]),
                 0, 0, 0, self.max_range],
-                dtype=float32)
+                dtype=float)
 
         """
         while self.landing_polygon.contains(Point(self.agent_pos[0], self.agent_pos[1])):
