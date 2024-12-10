@@ -21,7 +21,7 @@ from Reward.rewardfuncs import sparse_reward2d
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import LineString
-from gymnasium.envs.classic_control import rendering
+import pygame
 class mindstormBot(gym.Env):
     metadata = {'render.modes': ['human']}
 
@@ -88,6 +88,11 @@ class mindstormBot(gym.Env):
         )
         self.reward_range = (-float("inf"), float("inf"))
         self.agent_pos = []
+
+        # Initialize pygame
+        pygame.init()
+        self.screen = pygame.display.set_mode((800, 800))  # Set screen size
+        self.clock = pygame.time.Clock()
 
         self.reset()
         self.seed()
@@ -234,153 +239,48 @@ class mindstormBot(gym.Env):
         return self.agent_pos, info
 
     def render(self, mode='human'):
-        if self.viewer is None:
-            # Initialize the viewer
-            self.viewer = rendering.Viewer(740, 740)
-            self.viewer.set_bounds(-4, 4, -5, 5)
+        self.screen.fill((255, 255, 255))  # Fill screen with white color
 
-            # Chassis (rectangle)
-            l, r, t, b = -self.wheel_base / 2, self.wheel_base / 2, self.wheel_radius, -self.wheel_radius
-            chassis = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-            chassis.set_color(0.6, 0.6, 0.8)
-            self.chassis_transform = rendering.Transform()
-            chassis.add_attr(self.chassis_transform)
+        # Chassis (rectangle)
+        l, r, t, b = -self.wheel_base / 2, self.wheel_base / 2, self.wheel_radius, -self.wheel_radius
+        chassis_rect = pygame.Rect(self.agent_pos[0] * 100 + 400, self.agent_pos[1] * 100 + 400, self.wheel_base * 100, self.wheel_radius * 200)
+        pygame.draw.rect(self.screen, (150, 150, 200), chassis_rect)  # Draw chassis
 
-            # Wheels (rectangles)
-            wl, wr, wt, wb = -self.wheel_radius / 2, self.wheel_radius / 2, self.wheel_radius, -self.wheel_radius
-            wheel_left = rendering.FilledPolygon([(wl, wb), (wl, wt), (wr, wt), (wr, wb)])
-            wheel_left.set_color(0.1, 0.1, 0.1)
-            self.wheel_left_transform = rendering.Transform()
-            wheel_left.add_attr(self.wheel_left_transform)
-
-            wheel_right = rendering.FilledPolygon([(wl, wb), (wl, wt), (wr, wt), (wr, wb)])
-            wheel_right.set_color(0.1, 0.1, 0.1)
-            self.wheel_right_transform = rendering.Transform()
-            wheel_right.add_attr(self.wheel_right_transform)
-
-            # Goal (circle)
-            goal = rendering.make_circle(self.goal_range)
-            goal.set_color(0.3, 0.8, 0.3)
-            self.goal_transform = rendering.Transform()
-            goal.add_attr(self.goal_transform)
-
-            # Add components to viewer
-            self.viewer.add_geom(chassis)
-            self.viewer.add_geom(wheel_left)
-            self.viewer.add_geom(wheel_right)
-            self.viewer.add_geom(goal)
-
-        # Add wall
-        for polygon in self.polygons:
-            wall_coords = list(polygon.exterior.coords)
-            for i in range(len(wall_coords) - 1):
-                start_point = wall_coords[i]
-                end_point = wall_coords[i + 1]
-
-                wall_edge = rendering.Line(start_point, end_point)
-                wall_edge.set_color(0.8, 0.1, 0.1)
-
-                self.viewer.add_geom(wall_edge)
-
-        self.chassis_transform.set_translation(self.agent_pos[0], self.agent_pos[1])
-        self.chassis_transform.set_rotation(-self.agent_pos[4])
-
+        # Wheels (rectangles)
         wheel_offset = self.wheel_base / 2
-        self.wheel_left_transform.set_translation(
-            self.agent_pos[0] + wheel_offset * np.cos(self.agent_pos[4]),
-            self.agent_pos[1] - wheel_offset * np.sin(self.agent_pos[4])
-        )
-        self.wheel_left_transform.set_rotation(-self.agent_pos[4])
+        wheel_left_pos = (self.agent_pos[0] + wheel_offset * np.cos(self.agent_pos[4])) * 100 + 400, \
+                         (self.agent_pos[1] - wheel_offset * np.sin(self.agent_pos[4])) * 100 + 400
+        wheel_right_pos = (self.agent_pos[0] - wheel_offset * np.cos(self.agent_pos[4])) * 100 + 400, \
+                          (self.agent_pos[1] + wheel_offset * np.sin(self.agent_pos[4])) * 100 + 400
+        pygame.draw.circle(self.screen, (0, 0, 0), (int(wheel_left_pos[0]), int(wheel_left_pos[1])), int(self.wheel_radius * 50))
+        pygame.draw.circle(self.screen, (0, 0, 0), (int(wheel_right_pos[0]), int(wheel_right_pos[1])), int(self.wheel_radius * 50))
 
-        self.wheel_right_transform.set_translation(
-            self.agent_pos[0] - wheel_offset * np.cos(self.agent_pos[4]),
-            self.agent_pos[1] + wheel_offset * np.sin(self.agent_pos[4])
-        )
-        self.wheel_right_transform.set_rotation(-self.agent_pos[4])
+        # Goal (circle)
+        goal_pos = (self.goal_state[0] * 100 + 400, self.goal_state[1] * 100 + 400)
+        pygame.draw.circle(self.screen, (0, 255, 0), (int(goal_pos[0]), int(goal_pos[1])), 20)
 
-        self.goal_transform.set_translation(self.goal_state[0], self.goal_state[1])
+        # Add walls (polygon)
+        for polygon in self.polygons:
+            for i in range(len(polygon.exterior.coords) - 1):
+                start_point = polygon.exterior.coords[i]
+                end_point = polygon.exterior.coords[i + 1]
+                pygame.draw.line(self.screen, (200, 50, 50),
+                                 (int(start_point[0] * 100 + 400), int(start_point[1] * 100 + 400)),
+                                 (int(end_point[0] * 100 + 400), int(end_point[1] * 100 + 400)), 2)
 
-        for geom in self.dynamic_geometries:
-            self.viewer.geoms.remove(geom)
-        self.dynamic_geometries.clear()
+        # Update the display
+        pygame.display.flip()
 
-        points = [
-            np.array([self.agent_pos[0], self.agent_pos[1]]),
-            np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1]]),
-            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1]]),
-            np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1] + self.wheel_radius]),
-            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1] + self.wheel_radius]),
-            np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1] - self.wheel_radius]),
-            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1] - self.wheel_radius])
-        ]
-
-        rotation_matrix = np.array([
-            [np.cos(self.agent_pos[4]), np.sin(self.agent_pos[4])],
-            [-np.sin(self.agent_pos[4]), np.cos(self.agent_pos[4])]
-        ])
-        rotated_points = [rotation_matrix.dot(point - np.array([self.agent_pos[0], self.agent_pos[1]])) + np.array([self.agent_pos[0], self.agent_pos[1]])
-                          for point in points]
-
-        for idx, point in enumerate(rotated_points):
-            x, y = point[0], point[1]
-            circle = rendering.make_circle(radius=0.02)
-            transform = rendering.Transform(translation=(x, y))
-            circle.add_attr(transform)
-            circle.set_color(1.0, 0.0, 0.0)
-            self.viewer.add_geom(circle)
-            self.dynamic_geometries.append(circle)
-
-        shortest_ray_segment = None
-        min_length = float('inf')
-
-        ray_start = Point(self.agent_pos[0], self.agent_pos[1])
-        ray_end = Point(
-            ray_start.x + self.max_range * np.sin(self.agent_pos[4]),
-            ray_start.y + self.max_range * np.cos(self.agent_pos[4])
-        )
-        for wall_polygon in self.polygons:
-            ray = LineString([ray_start, ray_end])
-            intersection = ray.intersection(wall_polygon)
-
-            if not intersection.is_empty:
-                if isinstance(intersection, LineString):
-                    intersection_point = intersection.coords[0]
-
-                    ray_segment = rendering.Line(
-                        (ray_start.x, ray_start.y),
-                        (intersection_point[0], intersection_point[1])
-                    )
-                    ray_segment.set_color(0.0, 1.0, 0.0)
-                    ray_length = ray_start.distance(intersection)
-                else:
-                    ray_segment = rendering.Line(
-                        (ray_start.x, ray_start.y),
-                        (ray_end.x, ray_end.y)
-                    )
-                    ray_segment.set_color(1.0, 0.0, 0.0)
-                    ray_length = 5.0
-            else:
-                ray_segment = rendering.Line(
-                    (ray_start.x, ray_start.y),
-                    (ray_end.x, ray_end.y)
-                )
-                ray_segment.set_color(1.0, 0.0, 0.0)
-                ray_length = 5.0
-
-            if ray_length < min_length:
-                shortest_ray_segment = ray_segment
-                min_length = ray_length
-
-        self.viewer.add_geom(shortest_ray_segment)
-        self.dynamic_geometries.append(shortest_ray_segment)
-
-        # For gymnasium, the render method now directly returns an image in 'rgb_array' mode
-        if mode == 'rgb_array':
-            return self.viewer.render(return_rgb_array=True)
-        elif mode == 'human':
-            self.viewer.render()
+        if mode == 'human':
+            self.clock.tick(60)  # Control the frame rate
             return None
+        elif mode == 'rgb_array':
+            # Get the screen as a numpy array (return image)
+            return pygame.surfarray.array3d(self.screen)
 
+    def close(self):
+        pygame.quit()
+        
     def close(self):
         if self.viewer:
             self.viewer.close()
