@@ -4,7 +4,7 @@ todo:
 - improve load speed
 - spawn radius
 - localization probably not finished in time, try to get model working with only range finder data, possible other data as well
-
+- num workers
 """
 
 
@@ -22,21 +22,28 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import LineString
 import pygame
-class mindstormBot(gym.Env):
-    metadata = {'render.modes': ['human']}
 
+class mindstormBotEnv(gym.Env):
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
     # state = [x, z, xdot, zdot, theta], action = [Thrust, Theta_commanded], param = [mass, gain_const, time_const]
 
-    def __init__(self, t_s, goal_state=np.array([0, 3.5, 0, 0, 0], dtype=float),
+    def __init__(self, t_s=1/50, goal_state=np.array([0, 3.5, 0, 0, 0], dtype=float),
                  episode_steps=450, rewardfunc=sparse_reward2d, eom=dynamic_model_mindstorm,
-                 param=np.array([0.3,0.1]), rk4=runge_kutta4):
+                 param=np.array([0.3,0.1]), rk4=runge_kutta4,render_mode=None):
         #params: [wheel base, wheel radius]
         self.wheel_base = param[0]
         self.wheel_radius = param[1]
 
-        super(mindstormBot, self).__init__()
+        #rendering
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode
+        self.window = None
+        self.clock = None
+        self.window_size = 512
+        self.window_width = 300
+        self.window_height = 700
+        #super(mindstormBotEnv, self).__init__()
 
-        self.viewer = None
         self.episode_steps = episode_steps
         self.param = param
         self.rewardfunc = rewardfunc
@@ -61,10 +68,6 @@ class mindstormBot(gym.Env):
 
         # Create a polygon representing the wall by buffering the LineString
         self.polygons = [wall_center.buffer(self.wall_thickness / 2, cap_style=2), wall_center.buffer(self.wall_thickness / 2, cap_style=2), wall_center.buffer(self.wall_thickness / 2, cap_style=2)]
-        #self.wall_polygon1 = wall_center.buffer(self.wall_thickness / 2, cap_style=2)
-        #self.wall_polygon2 = wall_center.buffer(self.wall_thickness / 2, cap_style=2)
-        #self.wall_polygon3 = wall_center.buffer(self.wall_thickness / 2, cap_style=2)
-        
         #add long y-direction walls as border of field:
         self.polygons.append(LineString([(-3,-5),(-3,5)]).buffer(self.wall_thickness / 2, cap_style=2))
         self.polygons.append(LineString([(3,-5),(3,5)]).buffer(self.wall_thickness / 2, cap_style=2))
@@ -88,11 +91,6 @@ class mindstormBot(gym.Env):
         )
         self.reward_range = (-float("inf"), float("inf"))
         self.agent_pos = []
-
-        # Initialize pygame
-        pygame.init()
-        self.screen = pygame.display.set_mode((800, 800))  # Set screen size
-        self.clock = pygame.time.Clock()
 
         self.reset()
         self.seed()
@@ -174,7 +172,7 @@ class mindstormBot(gym.Env):
 
         return observation, reward, terminated,truncated, info
 
-    def reset(self, seed=None):
+    def reset(self, seed=None, options=None):
 
         self.episode_counter += 1
         """
@@ -218,13 +216,13 @@ class mindstormBot(gym.Env):
         # Gradually decrease the goal threshold
         #if 7500 >= self.episode_counter >= 2500 and self.goal_range >= 0.1:
         #    self.goal_range -= 0.15/5000
-        if self.episode_counter > 1000:
+        if self.episode_counter > 0:
             start_point = (-3, 1.5)
             self.polygons[0] = self.get_wall_polygon(self.wall_center(start_point))
-        if self.episode_counter > 1750:
+        if self.episode_counter > 0:
             start_point = (0,-0.5)
             self.polygons[1] = self.get_wall_polygon(self.wall_center(start_point))
-        if self.episode_counter > 2500:
+        if self.episode_counter > 0:
             start_point = (-3,-2)
             self.polygons[2] = self.get_wall_polygon(self.wall_center(start_point))
         
@@ -238,53 +236,83 @@ class mindstormBot(gym.Env):
 
         return self.agent_pos, info
 
-    def render(self, mode='human'):
-        self.screen.fill((255, 255, 255))  # Fill screen with white color
+    def render(self):
+        if self.render_mode == "rgb_array":
+            return self._render_frame()
+
+    def _render_frame(self):
+        if self.window is None and self.render_mode == "human":
+            pygame.init()
+            pygame.display.init()
+            self.window = pygame.display.set_mode(
+                (self.window_width, self.window_height)
+            )
+        if self.clock is None and self.render_mode == "human":
+            self.clock = pygame.time.Clock()
+        canvas = pygame.Surface((self.window_width, self.window_height))
+        canvas.fill((255, 255, 255))  # Fill screen with white color
 
         # Chassis (rectangle)
-        l, r, t, b = -self.wheel_base / 2, self.wheel_base / 2, self.wheel_radius, -self.wheel_radius
-        chassis_rect = pygame.Rect(self.agent_pos[0] * 100 + 400, self.agent_pos[1] * 100 + 400, self.wheel_base * 100, self.wheel_radius * 200)
-        pygame.draw.rect(self.screen, (150, 150, 200), chassis_rect)  # Draw chassis
+        chassis_surface = pygame.Surface((self.wheel_base * 100, self.wheel_radius * 200))
+        chassis_surface.fill((150, 150, 200))  # Fill with the chassis color (light blue)
 
+        # Apply rotation to the chassis surface based on the car's orientation
+        print(self.agent_pos[4])
+        chassis_surface = pygame.transform.rotate(chassis_surface, -self.agent_pos[4] * 180 / pi)  # Convert radians to degrees
+
+        # Get the new center of the rotated surface
+        new_width, new_height = chassis_surface.get_size()
+        chassis_rect = chassis_surface.get_rect()
+
+        # Position the chassis based on the agent's position
+        chassis_rect.center = (self.agent_pos[0] * 100, self.agent_pos[1] * 100)
+
+        # Draw the rotated chassis on the canvas
+        canvas.blit(chassis_surface, chassis_rect)  # Blit the rotated surface to the canvas
         # Wheels (rectangles)
+        """
         wheel_offset = self.wheel_base / 2
         wheel_left_pos = (self.agent_pos[0] + wheel_offset * np.cos(self.agent_pos[4])) * 100 + 400, \
                          (self.agent_pos[1] - wheel_offset * np.sin(self.agent_pos[4])) * 100 + 400
         wheel_right_pos = (self.agent_pos[0] - wheel_offset * np.cos(self.agent_pos[4])) * 100 + 400, \
                           (self.agent_pos[1] + wheel_offset * np.sin(self.agent_pos[4])) * 100 + 400
-        pygame.draw.circle(self.screen, (0, 0, 0), (int(wheel_left_pos[0]), int(wheel_left_pos[1])), int(self.wheel_radius * 50))
-        pygame.draw.circle(self.screen, (0, 0, 0), (int(wheel_right_pos[0]), int(wheel_right_pos[1])), int(self.wheel_radius * 50))
-
+        pygame.draw.circle(canvas, (0, 0, 0), (int(wheel_left_pos[0]), int(wheel_left_pos[1])), int(self.wheel_radius * 50))
+        pygame.draw.circle(canvas, (0, 0, 0), (int(wheel_right_pos[0]), int(wheel_right_pos[1])), int(self.wheel_radius * 50))
+        """
         # Goal (circle)
-        goal_pos = (self.goal_state[0] * 100 + 400, self.goal_state[1] * 100 + 400)
-        pygame.draw.circle(self.screen, (0, 255, 0), (int(goal_pos[0]), int(goal_pos[1])), 20)
+        goal_pos = (self.goal_state[0] * 100, self.goal_state[1] * 100)
+        pygame.draw.circle(canvas, (0, 255, 0), (int(goal_pos[0]), int(goal_pos[1])), 20)
 
         # Add walls (polygon)
         for polygon in self.polygons:
             for i in range(len(polygon.exterior.coords) - 1):
                 start_point = polygon.exterior.coords[i]
                 end_point = polygon.exterior.coords[i + 1]
-                pygame.draw.line(self.screen, (200, 50, 50),
+                pygame.draw.line(canvas, (200, 50, 50),
                                  (int(start_point[0] * 100 + 400), int(start_point[1] * 100 + 400)),
                                  (int(end_point[0] * 100 + 400), int(end_point[1] * 100 + 400)), 2)
 
         # Update the display
-        pygame.display.flip()
+        #pygame.display.flip()
 
-        if mode == 'human':
-            self.clock.tick(60)  # Control the frame rate
-            return None
-        elif mode == 'rgb_array':
-            # Get the screen as a numpy array (return image)
-            return pygame.surfarray.array3d(self.screen)
+        if self.render_mode == "human":
+            # The following line copies our drawings from `canvas` to the visible window
+            self.window.blit(canvas, canvas.get_rect())
+            pygame.event.pump()
+            pygame.display.update()
+
+            # We need to ensure that human-rendering occurs at the predefined framerate.
+            # The following line will automatically add a delay to keep the framerate stable.
+            self.clock.tick(self.metadata["render_fps"])
+        else:  # rgb_array
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
+            )
 
     def close(self):
-        pygame.quit()
-        
-    def close(self):
-        if self.viewer:
-            self.viewer.close()
-            self.viewer = None
+        if self.window is not None:
+            pygame.display.quit()
+            pygame.quit()
 
 
 

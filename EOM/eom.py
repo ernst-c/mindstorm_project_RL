@@ -15,7 +15,6 @@ def simple_dynamic_model(x,u, param):
     dx = [x_dot_new,y_dot_new,x_dot_new-x[2],y_dot_new-x[3],alpha,0]
     return dx
 
-@jit
 def dynamic_model_mindstorm(x,u, param):
     wheel_base = param[0]   # distance between the wheels
     wheel_radius = param[1]# radius of the wheels

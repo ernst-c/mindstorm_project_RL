@@ -1,5 +1,5 @@
 # Use Python 3.7 as the base image
-FROM python:3.7
+FROM python:3.10-slim
 
 # Install Xvfb and python3-opengl
 RUN apt-get update && apt-get install -y \
@@ -10,11 +10,10 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Install PyTorch 1.5.0 with CPU support
-RUN pip install torch==1.5.0+cpu torchvision==0.6.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install torch==2.5.1 torchvision==0.20.1 -f https://download.pytorch.org/whl/torch_stable.html
 
 # Install other Python dependencies
-RUN pip install numpy==1.18.4 stable-baselines3==0.6.0 gym==0.17.3 shapely numba
+RUN pip install numpy==1.26.4 stable-baselines3==2.4.0 gymnasium==1.0.0 shapely==2.0.6 numba==0.60.0 pygame==2.5.1
 
 # Set entry point to Xvfb
 CMD ["xvfb-run", "-s", "-screen 0 1280x1024x24", "python"]

@@ -1,9 +1,7 @@
-Forked from: https://github.com/Jacobkooi/InclinedDroneLander
-<br>
-original paper: Inclined Quadrotor Landing using Deep Reinforcement Learning
-<br>
-link: https://arxiv.org/abs/2103.09043
-<br>
-This fork was created for the following thesis: Inclined quadrotor landing using on-board sensors and computing
-<br>
-link: https://repository.tudelft.nl/record/uuid:476f61d0-2ce3-49cb-8456-39619b1fb8ca
+also install gymnasium[other] for video rendering
+
+xhost +
+sudo docker run -it --cpus=<max_cores> --memory=<max_memory> --name gym_environment -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /home:/home gym_environment /bin/bash
+
+
+sudo docker run -it --cpus=4 --memory=12G --name gymnasium_env -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /home:/home gymnasium_env /bin/bash
