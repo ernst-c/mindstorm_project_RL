@@ -24,7 +24,7 @@ from shapely.geometry import LineString
 import pygame
 
 class mindstormBotEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 50}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 1}
     # state = [x, z, xdot, zdot, theta], action = [Thrust, Theta_commanded], param = [mass, gain_const, time_const]
 
     def __init__(self, t_s=1/50, goal_state=np.array([0, 5, 0, 0, 0], dtype=float),
@@ -58,18 +58,24 @@ class mindstormBotEnv(gym.Env):
         # Define the wall's start and end points
         start_point = (-20,0)
 
-        self.wall_length = 0.1
+        
+        self.wall_length = 3
         # Create a LineString representing the wall's center line
+        
         wall_center = LineString([start_point, (start_point[0]+self.wall_length,start_point[1])])
 
         # Define the wall's thickness (0.2 in this case)
         self.wall_thickness = 0.2
-        self.horizontal_spawn_radius = 0.25
-        self.vertical_spawn_radius = 0.25
-                
 
         # Create a polygon representing the wall by buffering the LineString
         self.polygons = [wall_center.buffer(self.wall_thickness / 2, cap_style=2), wall_center.buffer(self.wall_thickness / 2, cap_style=2), wall_center.buffer(self.wall_thickness / 2, cap_style=2)]
+        start_point = (-3, 4)
+        self.polygons[0] = self.get_wall_polygon(self.wall_center(start_point))
+        start_point = (0, 2)
+        self.polygons[1] = self.get_wall_polygon(self.wall_center(start_point))
+        start_point = (-3,0.5)
+        self.polygons[2] = self.get_wall_polygon(self.wall_center(start_point))
+
         #add long y-direction walls as border of field:
         self.polygons.append(LineString([(-3,0),(-3,6)]).buffer(self.wall_thickness / 2, cap_style=2))
         self.polygons.append(LineString([(3,0),(3,6)]).buffer(self.wall_thickness / 2, cap_style=2))
@@ -79,6 +85,9 @@ class mindstormBotEnv(gym.Env):
         self.episode_counter = 0
         self.goal_range = 1
         self.spawn_increment = 1/2500
+        self.horizontal_spawn_radius = 2
+        self.vertical_spawn_radius = 5.8
+
         #left wheel pwm, right wheel pwm;
         self.action_space = spaces.Box(low=np.array([-1, -1]),
                                        high=np.array([1, 1]), dtype=float)
@@ -216,15 +225,6 @@ class mindstormBotEnv(gym.Env):
         # Gradually decrease the goal threshold
         #if 7500 >= self.episode_counter >= 2500 and self.goal_range >= 0.1:
         #    self.goal_range -= 0.15/5000
-        if self.episode_counter > 1000:
-            start_point = (-3, 4)
-            self.polygons[0] = self.get_wall_polygon(self.wall_center(start_point))
-        if self.episode_counter > 2500:
-            start_point = (0, 2)
-            self.polygons[1] = self.get_wall_polygon(self.wall_center(start_point))
-        if self.episode_counter > 4000:
-            start_point = (-3,0.5)
-            self.polygons[2] = self.get_wall_polygon(self.wall_center(start_point))
         
         # Clip position to be in the bounds of the field
         self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0] + 0.1,
