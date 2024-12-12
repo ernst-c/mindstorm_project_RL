@@ -21,13 +21,13 @@ from Reward.rewardfuncs import sparse_reward2d
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import LineString
+from numba import jit
 
 class mindstormBot(gym.Env):
     metadata = {'render.modes': ['human']}
 
     # state = [x, z, xdot, zdot, theta], action = [Thrust, Theta_commanded], param = [mass, gain_const, time_const]
-
-    def __init__(self, t_s, goal_state=np.array([0, 3.5, 0, 0, 0], dtype=float),
+    def __init__(self, t_s, goal_state=np.array([0, 3.25, 0, 0, 0], dtype=float),
                  episode_steps=450, rewardfunc=sparse_reward2d, eom=dynamic_model_mindstorm,
                  param=np.array([0.3,0.1]), rk4=runge_kutta4):
         #params: [wheel base, wheel radius]
@@ -35,6 +35,7 @@ class mindstormBot(gym.Env):
         self.wheel_radius = param[1]
 
         super(mindstormBot, self).__init__()
+
 
         self.viewer = None
         self.episode_steps = episode_steps
@@ -70,7 +71,7 @@ class mindstormBot(gym.Env):
         # Used for simulations
         self.episode_counter = 0
         self.goal_range = 1
-        self.spawn_increment = 1/1500
+        self.spawn_increment = 1/2500
         self.horizontal_spawn_radius = 0.25
         self.vertical_spawn_radius = 0.25
         #left wheel pwm, right wheel pwm;
@@ -84,11 +85,34 @@ class mindstormBot(gym.Env):
             dtype=np.float
         )
         self.reward_range = (-float("inf"), float("inf"))
-        self.agent_pos = []
-
+        self.agent_pos = [0,0,0,0,0,0]
+        self.body_size = 0.25
+        self.body_shape = Polygon([
+            (self.agent_pos[0] - self.body_size, self.agent_pos[1] - self.body_size),  # Bottom-left
+            (self.agent_pos[0] - self.body_size, self.agent_pos[1] + self.body_size),  # Top-left
+            (self.agent_pos[0] + self.body_size, self.agent_pos[1] + self.body_size),  # Top-right
+            (self.agent_pos[0] + self.body_size, self.agent_pos[1] - self.body_size)   # Bottom-right
+        ])
+        """
+        self.points = [np.array([self.agent_pos[0], self.agent_pos[1]]),  # point1
+            np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1]]),  # point2
+            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1]]),  # point3
+            np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1] + self.wheel_radius]),  # point4
+            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1] + self.wheel_radius]),  # point5
+            np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1] - self.wheel_radius]),  # point6
+            np.array([self.agent_pos[0] - self.wheel_base / 2, self.agent_pos[1] - self.wheel_radius])]  # point7
+        """
         self.reset()
         self.seed()
         self.counter = 0
+
+    def set_body_shape(self):
+        self.body_shape = Polygon([
+            (self.agent_pos[0] - self.body_size, self.agent_pos[1] - self.body_size),  # Bottom-left
+            (self.agent_pos[0] - self.body_size, self.agent_pos[1] + self.body_size),  # Top-left
+            (self.agent_pos[0] + self.body_size, self.agent_pos[1] + self.body_size),  # Top-right
+            (self.agent_pos[0] + self.body_size, self.agent_pos[1] - self.body_size)   # Bottom-right
+        ])
 
     def wall_center(self,start_point):
         return LineString([start_point, (start_point[0]+self.wall_length,start_point[1])])
@@ -118,17 +142,16 @@ class mindstormBot(gym.Env):
 
         if intersection.is_empty:
             return self.max_range  # No intersection, return max range
-
         # If there's an intersection, handle it
-        if isinstance(intersection, Point):
-            return ray_start.distance(intersection)
+        #if isinstance(intersection, Point):
+        #    return ray_start.distance(intersection)
         elif isinstance(intersection, LineString):
             # For a LineString, use the closest endpoint
             distances = [ray_start.distance(Point(pt)) for pt in intersection.coords]
             return min(distances)
-        elif intersection.geom_type == 'MultiPoint':
-            # Multiple intersection points, take the closest
-            return min(ray_start.distance(point) for point in intersection.geoms)
+        #elif intersection.geom_type == 'MultiPoint':
+        #    # Multiple intersection points, take the closest
+        #    return min(ray_start.distance(point) for point in intersection.geoms)
 
         # Default fallback, no valid intersection
         return self.max_range
@@ -146,19 +169,25 @@ class mindstormBot(gym.Env):
         #fix orientation value issues for training
         self.agent_pos[4] = (self.agent_pos[4] + np.pi) % (2 * np.pi) - np.pi
         movement = self.EOM(self.agent_pos, self.real_action, self.param)
-        for polygon in self.polygons:
-            if (polygon.contains(self.agent_pos[0]+movement[0],self.agent_pos[1]+movement[1]):
-                movement[0],movement[1] = 0,0;
-        self.agent_pos = self.agent_pos + movement #self.RK4(self.agent_pos, self.real_action, self.EOM, self.T_s)
-        self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
 
+        self.set_body_shape()
+
+        #set laser detected range to closest detected object
         for polygon in self.polygons:
+            if (polygon.contains(self.body_shape)):
+                movement[0],movement[1] = 0,0
             distance_of_object = self.get_single_range_finder_reading(polygon)
             if distance_of_object < self.agent_pos[5]:
                 self.agent_pos[5] = distance_of_object
-        
+
+        self.agent_pos[0] += movement[0]
+        self.agent_pos[1] += movement[1]
+        self.agent_pos[4] += movement[4]
+        self.agent_pos = self.agent_pos + movement #self.RK4(self.agent_pos, self.real_action, self.EOM, self.T_s)
+        self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
+
         observation = self.agent_pos
-        reward, done = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range, self.polygons, self.wheel_base, self.wheel_radius)
+        reward, done = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range, self.polygons, self.wheel_base, self.wheel_radius, self.body_shape)
         point = Point(self.agent_pos[0], self.agent_pos[1])
         self.counter += 1
         self.Timesteps += 1
@@ -183,7 +212,7 @@ class mindstormBot(gym.Env):
                                    r.uniform(self.goal_state[1]-self.vertical_spawn_radius,self.goal_state[1]),
                                    0, 0, 0, self.max_range], dtype=np.float32)
 
-        while any(polygon.contains(Point(self.agent_pos[0], self.agent_pos[1])) for polygon in self.polygons):
+        while any(polygon.contains(self.body_shape) for polygon in self.polygons):
             self.agent_pos = np.array(
                 [np.clip(r.uniform(self.goal_state[0] - self.horizontal_spawn_radius,
                                 self.goal_state[0] + self.horizontal_spawn_radius),
@@ -193,7 +222,6 @@ class mindstormBot(gym.Env):
                         self.observation_space.low[1], self.observation_space.high[1]),
                 0, 0, 0, self.max_range],
                 dtype=np.float32)
-
         """
         while self.landing_polygon.contains(Point(self.agent_pos[0], self.agent_pos[1])):
             self.agent_pos = np.array([np.clip(r.uniform(self.goal_state[0] - self.horizontal_spawn_radius,
@@ -307,7 +335,7 @@ class mindstormBot(gym.Env):
         for geom in self.dynamic_geometries:
             self.viewer.geoms.remove(geom)
         self.dynamic_geometries.clear()
-
+        """
         points = [
             np.array([self.agent_pos[0], self.agent_pos[1]]),
             np.array([self.agent_pos[0] + self.wheel_base / 2, self.agent_pos[1]]), 
@@ -333,7 +361,7 @@ class mindstormBot(gym.Env):
             circle.set_color(1.0, 0.0, 0.0)
             self.viewer.add_geom(circle)
             self.dynamic_geometries.append(circle)
-
+        """
         shortest_ray_segment = None
         min_length = float('inf') 
 

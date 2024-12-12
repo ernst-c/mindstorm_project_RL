@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     environment = 'mindstormBot'
     algorithm = 'PPO'
-    training_timesteps = 750000
+    training_timesteps = 1000000
     t_s = 1/50                    
 
     if environment == 'mindstormBot':
@@ -55,13 +55,13 @@ if __name__ == '__main__':
     #model.policy.to(device)
     obs = env.reset() 
 
-    for iteration in range(1, 15):
-        model.learn(training_timesteps/15, reset_num_timesteps=False)
+    for iteration in range(1, 10+1):
+        model.learn(training_timesteps/10, reset_num_timesteps=False)
         
         if iteration % 1 == 0:
             try:
                 print(f"Rendering episode at iteration {iteration}") 
-                for i in range(600):
+                for i in range(300):
                 
                     action, _states = model.predict(obs, deterministic=True)
                     #if i % 10 == 0:
@@ -78,9 +78,9 @@ if __name__ == '__main__':
                 print(f"An error occurred: {e}. Skipping to the next iteration.")
                 break
         
-        if iteration % 15 == 0:
+        if iteration % 5 == 0:
             try:
-                run_name = "dec10_1546"+str(iteration)+"_"+str(training_timesteps)
+                run_name = "dec11_1042"+str(iteration)+"_"+str(training_timesteps)
                 torch.save(model.policy.state_dict(), run_name + 'render.pt')
             except Exception as e:
                 print(f"An error occurred: {e}. Skipping to the next iteration.")
@@ -88,14 +88,14 @@ if __name__ == '__main__':
                 
     frames = []
     # save gif at end of training
-    for i in range(2400):
+    for i in range(1500):
         action, _states = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
         frames.append(env.render(mode='rgb_array'))
         if done:
             obs = env.reset()
     # Save Gif
-    run_name = "dec10_1546"+str(iteration)+"_"+str(training_timesteps)
+    run_name = "dec11_1042"+str(iteration)+"_"+str(training_timesteps)
 
     save_frames_as_gif(frames, filename=run_name+'.gif')
 
