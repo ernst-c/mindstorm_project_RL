@@ -52,6 +52,6 @@ def dynamic_model_mindstorm(x,u, param):
     print("y_dot", y_dot)
     print("alpha dot", alpha_dot)
     """
-    dx = np.array([x_dot, y_dot, 0, 0, alpha_dot,0])  # Linear velocities + accelerations + angular velocity
+    dx = np.array([x_dot, y_dot, 0, 0, alpha_dot, 5])  # Linear velocities + accelerations + angular velocity
 
     return dx

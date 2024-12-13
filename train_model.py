@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     environment = 'mindstormBot'
     algorithm = 'PPO'
-    training_timesteps = 1000000
+    training_timesteps = 3000000
     t_s = 1/50
     #env = SyncVectorEnv([make_env for _ in range(num_envs)])
     n_envs = 8
@@ -85,11 +85,11 @@ if __name__ == '__main__':
                            name_prefix=f"random-agent")
     env.reset()
     for _ in range(video_length):
-        actions = model.predict(obs)[0]
+        actions = model.predict(obs)[0] #[-0.5,0.5] #[x,y,0,0,theta,laser_range_finder_range] [laser_range_finder_range]
         obs, rewards, dones, info = env.step(actions)
-        for i in range(n_envs):
-            if dones[i]:
-                obs[i] = env.reset()[i]
+        #for i in range(n_envs):
+        #    if dones[i]:
+        #        obs[i] = env.reset()[i]
     env.close()
 
     run_name = "dec11"+"_"+str(training_timesteps)
