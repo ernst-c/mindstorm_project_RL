@@ -15,9 +15,6 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecVideoRecorder
 from sbx import DDPG, DQN, PPO
 """
 todo:
-add range finder
-improve wall create obstacle
-fix rotation bug at beginning
 
 """
 
@@ -92,7 +89,7 @@ if __name__ == '__main__':
         #        obs[i] = env.reset()[i]
     env.close()
 
-    run_name = "dec11"+"_"+str(training_timesteps)
+    run_name = "dec15_1628"+"_"+str(training_timesteps)
 
     # Save the final trained model
     torch.save(model.policy.state_dict(), run_name + '.pt')

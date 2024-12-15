@@ -1,6 +1,8 @@
 # Use Python 3.7 as the base image
 FROM python:3.10-slim
 
+
+## ADD GIT + RL_ZOO (from source)
 # Install Xvfb and python3-opengl
 RUN apt-get update && apt-get install -y \
     xvfb \

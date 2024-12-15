@@ -111,7 +111,6 @@ class mindstormBotEnv(gym.Env):
         self.polygons.append(LineString([(-3,6),(3,6)]))
         #optimization: 
         self.spatial_index = STRtree(self.polygons)
-        self.possible_polygons = []
 
         #rendering
         self.ray = LineString([(0,0),(0,0)])
@@ -128,13 +127,6 @@ class mindstormBotEnv(gym.Env):
             (self.agent_pos[0] + self.body_size, self.agent_pos[1] + self.body_size),  # Top-right
             (self.agent_pos[0] + self.body_size, self.agent_pos[1] - self.body_size)   # Bottom-right
         ])
-
-    #def wall_center(self,start_point):
-    #    return LineString([start_point, (start_point[0]+self.wall_length,start_point[1])])
-
-    #def get_wall_polygon(self,wall_center):
-    #    return wall_center.buffer(self.wall_thickness / 2, cap_style=2)
-
     def get_wall_line(self, start_point):
         return LineString([start_point, (start_point[0] + self.wall_length, start_point[1])])
 
@@ -253,17 +245,7 @@ class mindstormBotEnv(gym.Env):
             self.vertical_spawn_radius += self.spawn_increment
         if self.wall_length < 3:
             self.wall_length += self.spawn_increment
-        """
-        if self.episode_counter > 1000:
-            start_point = (-3, 4)
-            self.polygons[0] = self.get_wall_polygon(self.wall_center(start_point))
-        if self.episode_counter > 2500:
-            start_point = (0, 2)
-            self.polygons[1] = self.get_wall_polygon(self.wall_center(start_point))
-        if self.episode_counter > 4000:
-            start_point = (-3,0.5)
-            self.polygons[2] = self.get_wall_polygon(self.wall_center(start_point))
-        """
+
         self.polygons[0] = self.get_wall_line((r.uniform(-3,0),4))
         self.polygons[1] = self.get_wall_line((r.uniform(-3,0),2))
         self.polygons[2] = self.get_wall_line((r.uniform(-3,0),0.5))
