@@ -16,13 +16,9 @@ def sparse_reward2d(next_state, goal_state, observation_space, goal_range, colli
                         abs(next_state[1] - observation_space.high[1]) < 0.05 or
                         abs(next_state[1] - observation_space.low[1]) < 0.05))
     obstacle_reward = 0
-    ###remove, not optimized
-    #for polygon in polygons:
-    #    if polygon.intersects(body_shape):
-    #        obstacle_reward = -30
-    #        break
+
     if collision:
-        obstacle_reward = -30
+        obstacle_reward = -6
     
     total_reward = goal_reward_distance + bounds_reward + obstacle_reward
     done = (goal_reward_distance == 0)

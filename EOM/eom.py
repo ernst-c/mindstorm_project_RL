@@ -15,7 +15,7 @@ def simple_dynamic_model(x,u, param):
     dx = [x_dot_new,y_dot_new,x_dot_new-x[2],y_dot_new-x[3],alpha,0]
     return dx
 
-def dynamic_model_mindstorm(x,u, param):
+def dynamic_model_mindstorm(x,u, param, wheel_velocity):
     wheel_base = param[0]   # distance between the wheels
     wheel_radius = param[1]# radius of the wheels
     T_s = 1/50
@@ -24,13 +24,14 @@ def dynamic_model_mindstorm(x,u, param):
     r = wheel_radius
     L = wheel_base
     # Current state (x_pos, y_pos, x_dot, y_dot, alpha)
-    x_pos, y_pos, x_dot, y_dot, alpha, max_range = x
+    x_pos, y_pos, alpha, max_range = x
 
     # Motor inputs (PWM commands for left and right motors)
-    l_pwm, r_pwm = u*20
 
-    v_l = l_pwm * wheel_radius  # Left wheel linear velocity
-    v_r = r_pwm * wheel_radius  # Right wheel linear velocity
+    l_omega, r_omega = ((u*12 - wheel_velocity)/0.25)*T_s  
+
+    v_l = l_omega * wheel_radius  # Left wheel linear velocity
+    v_r = r_omega * wheel_radius  # Right wheel linear velocity
 
     # Compute linear and angular velocity of the robot
     v = (v_l + v_r) / 2  # Linear velocity
@@ -40,18 +41,10 @@ def dynamic_model_mindstorm(x,u, param):
     x_dot = T_s * v * np.sin(alpha)
     y_dot = T_s * v * np.cos(alpha)
 
+    wheel_velocity = [l_omega, r_omega]
     # Update orientation
     alpha_dot = T_s * omega
 
-    """
-    print("pwms", l_pwm, r_pwm)
-    print("vl vr", v_l, v_r)
-    print("v",v)
-    print("omega", omega)
-    print("x_dot", x_dot)
-    print("y_dot", y_dot)
-    print("alpha dot", alpha_dot)
-    """
-    dx = np.array([x_dot, y_dot, 0, 0, alpha_dot, 5])  # Linear velocities + accelerations + angular velocity
+    dx = np.array([x_dot, y_dot, alpha_dot, 1, l_omega, r_omega])  # Linear velocities + accelerations + angular velocity
 
     return dx

@@ -1,10 +1,10 @@
 """
 todo:
-- improve collision detection
-- improve load speed
 - spawn radius
-- localization probably not finished in time, try to get model working with only range finder data, possible other data as well
-- num workers
+- improve dynamic model, scaling of map, range finder range scaling
+- add in transfer function
+- scale map correctly
+- range finder range scaling
 """
 
 
@@ -28,8 +28,8 @@ class mindstormBotEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 50}
     # state = [x, z, xdot, zdot, theta], action = [Thrust, Theta_commanded], param = [mass, gain_const, time_const]
 
-    def __init__(self, t_s=1/50, goal_state=np.array([0, 5, 0, 0, 0], dtype=float),
-                 episode_steps=450, rewardfunc=sparse_reward2d, eom=dynamic_model_mindstorm,
+    def __init__(self, t_s=1/50, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
+                 episode_steps=800, rewardfunc=sparse_reward2d, eom=dynamic_model_mindstorm,
                  param=np.array([0.3,0.1]), rk4=runge_kutta4,render_mode=None):
         #params: [wheel base, wheel radius]
         self.wheel_base = param[0]
@@ -40,8 +40,8 @@ class mindstormBotEnv(gym.Env):
         self.render_mode = render_mode
         self.window = None
         self.clock = None
-        self.window_width = 700
-        self.window_height = 700
+        self.window_width = 200
+        self.window_height = 200
         #super(mindstormBotEnv, self).__init__()
 
         self.episode_steps = episode_steps
@@ -54,7 +54,7 @@ class mindstormBotEnv(gym.Env):
         self.goal_state = goal_state
 
         #range finder
-        self.max_range = 5
+        self.max_range = 1
 
         # Define the wall's start and end points
         start_point = (-20,0)
@@ -64,9 +64,8 @@ class mindstormBotEnv(gym.Env):
         wall_center = LineString([start_point, (start_point[0]+self.wall_length,start_point[1])])
 
         # Define the wall's thickness (0.2 in this case)
-        self.wall_thickness = 0.2
-        self.horizontal_spawn_radius = 0.25
-        self.vertical_spawn_radius = 0.25
+        self.horizontal_spawn_radius = 0.1
+        self.vertical_spawn_radius = 0.1
                 
 
         # Create a polygon representing the wall by buffering the LineString
@@ -75,7 +74,6 @@ class mindstormBotEnv(gym.Env):
         
         # Used for simulations
         self.episode_counter = 0
-        self.goal_range = 1
         self.spawn_increment = 1/2500
         #left wheel pwm, right wheel pwm;
         self.action_space = spaces.Box(low=np.array([-1, -1]),
@@ -83,23 +81,17 @@ class mindstormBotEnv(gym.Env):
         # States are: [x, z, x_dot. z_dot, Theta, Theta_dot]
         # new states are: [x,y, x_dot, z_dot, alpha]
         self.observation_space = spaces.Box(
-            low=np.array([-3, 0, -20, -20, -2*pi,0]),
-            high=np.array([3, 6, 20, 20, 2*pi,self.max_range]),
+            low=np.array([-0.4, 0, -2*pi,0]),
+            high=np.array([0.4, 1.6, 2*pi,self.max_range]),
             dtype=float
         )
         self.reward_range = (-float("inf"), float("inf"))
-        self.body_size = 0.25
         self.agent_pos = [0,0,0,0,0,0]
-        self.body_shape = Polygon([
-            (self.agent_pos[0] - self.body_size, self.agent_pos[1] - self.body_size),  # Bottom-left
-            (self.agent_pos[0] - self.body_size, self.agent_pos[1] + self.body_size),  # Top-left
-            (self.agent_pos[0] + self.body_size, self.agent_pos[1] + self.body_size),  # Top-right
-            (self.agent_pos[0] + self.body_size, self.agent_pos[1] - self.body_size)   # Bottom-right
-        ])
 
+        #dynamic model
+        self.wheel_velocity = [0,0]
         # optimization
-        self.goal_range = 0.9
-        self.wall_length = 0.1
+        self.goal_range = 0.15
         self.polygons = [0,0,0]
         start_point = (-3, 4)   
         self.polygons[0] = self.get_wall_line(start_point)
@@ -107,10 +99,10 @@ class mindstormBotEnv(gym.Env):
         self.polygons[1] = self.get_wall_line(start_point)
         start_point = (-3,0.5)
         self.polygons[2] = self.get_wall_line(start_point)
-        self.polygons.append(LineString([(-3,0),(-3,6)]))
-        self.polygons.append(LineString([(3,0),(3,6)]))
+        self.polygons.append(LineString([(-0.4,0),(-0.4,1.6)]))
+        self.polygons.append(LineString([(0.4,0),(0.4,1.6)]))
         #border behind goal:
-        self.polygons.append(LineString([(-3,6),(3,6)]))
+        self.polygons.append(LineString([(-0.4,1.6),(0.4,1.6)]))
 
         self.spatial_index = STRtree(self.polygons)
         self.counter = 0
@@ -121,14 +113,6 @@ class mindstormBotEnv(gym.Env):
         self.reset()
         self.seed()
 
-
-    def set_body_shape(self):
-        self.body_shape = Polygon([
-            (self.agent_pos[0] - self.body_size, self.agent_pos[1] - self.body_size),  # Bottom-left
-            (self.agent_pos[0] - self.body_size, self.agent_pos[1] + self.body_size),  # Top-left
-            (self.agent_pos[0] + self.body_size, self.agent_pos[1] + self.body_size),  # Top-right
-            (self.agent_pos[0] + self.body_size, self.agent_pos[1] - self.body_size)   # Bottom-right
-        ])
     def get_wall_line(self, start_point):
         return LineString([start_point, (start_point[0] + self.wall_length, start_point[1])])
 
@@ -136,11 +120,10 @@ class mindstormBotEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-
     def ray_caster(self):
         # Create a LineString representing the robot's position and orientation
         robot_position = (self.agent_pos[0], self.agent_pos[1])
-        robot_orientation = self.agent_pos[4]
+        robot_orientation = self.agent_pos[2]
         ray_start = Point(robot_position)
         ray_end = Point(
             ray_start.x + self.max_range * np.sin(robot_orientation),
@@ -174,10 +157,9 @@ class mindstormBotEnv(gym.Env):
     def step(self, action):
         self.real_action = np.array([action[0], action[1]], dtype=float)
         #fix orientation value issues for training
-        self.agent_pos[4] = (self.agent_pos[4] + np.pi) % (2 * np.pi) - np.pi
-        movement = self.EOM(self.agent_pos, self.real_action, self.param)
+        self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
+        movement = self.EOM(self.agent_pos, self.real_action, self.param, self.wheel_velocity)
 
-        #self.set_body_shape()
         ray = self.ray_caster()
         #set laser detected range to closest detected object
         collision = False   
@@ -185,30 +167,22 @@ class mindstormBotEnv(gym.Env):
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
             
-        self.agent_pos[5] = self.max_range
-        #closest_distance = min(self.spatial_index.query_nearest(ray, return_distance=True)[1])
-        #if closest_distance < self.max_range:
-        #    self.agent_pos[5] = closest_distance
-        #print(self.spatial_index.query(ray, predicate='intersects'))
+        self.agent_pos[3] = self.max_range
         query_result = self.spatial_index.query(ray, predicate='intersects')
         if len(query_result) > 0:
             for i in query_result:
                 closest_object = self.polygons[int(i)]
                 closest_intersection = self.cast_ray(closest_object, ray)
-                if closest_intersection < self.agent_pos[5]:
-                    self.agent_pos[5] = closest_intersection
-        
-        #for polygon in self.spatial_index.geometries:
-        #    distance_of_object = self.cast_ray(polygon, ray)
-        #    if distance_of_object < self.agent_pos[5]:
-        #        self.agent_pos[5] = distance_of_object
-        self.ray = LineString([ray.coords[0], (ray.coords[0][0] + self.agent_pos[5] * np.sin(self.agent_pos[4]),
-                                                ray.coords[0][1] + self.agent_pos[5] * np.cos(self.agent_pos[4]))])
+                if closest_intersection < self.agent_pos[3]:
+                    self.agent_pos[3] = closest_intersection
+        self.ray = LineString([ray.coords[0], (ray.coords[0][0] + self.agent_pos[3] * np.sin(self.agent_pos[2]),
+                                                ray.coords[0][1] + self.agent_pos[3] * np.cos(self.agent_pos[2]))])
 
         self.agent_pos[0] += movement[0]
         self.agent_pos[1] += movement[1]
-        self.agent_pos[4] += movement[4]
-        #self.agent_pos = self.agent_pos + movement #self.RK4(self.agent_pos, self.real_action, self.EOM, self.T_s)
+        self.agent_pos[2] += movement[2]
+        self.wheel_velocity[0] = movement[4]
+        self.wheel_velocity[1] = movement[5]
         self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
 
         observation = self.agent_pos
@@ -228,8 +202,33 @@ class mindstormBotEnv(gym.Env):
         self.episode_counter += 1
         self.agent_pos = np.array([r.uniform(self.goal_state[0]-self.horizontal_spawn_radius,self.goal_state[0]+self.horizontal_spawn_radius),
                                    r.uniform(self.goal_state[1]-self.vertical_spawn_radius,self.goal_state[1]),
-                                   0, 0, 0, self.max_range], dtype=float)
+                                   0, self.max_range], dtype=float)
 
+        # Spawn Radius Increase
+        if self.horizontal_spawn_radius <= 0.25:
+            self.horizontal_spawn_radius += self.spawn_increment
+        if self.vertical_spawn_radius <= 1.5:
+            self.vertical_spawn_radius += self.spawn_increment
+        if self.wall_length < 0.4:
+            self.wall_length += self.spawn_increment #self.spawn_increment
+
+        self.polygons[0] = self.get_wall_line((r.choice([-0.4,0]),0.4))
+        self.polygons[1] = self.get_wall_line((r.choice([-0.4,0]),0.8))
+        self.polygons[2] = self.get_wall_line((r.choice([-0.4,0]),1.2))
+
+        self.spatial_index = STRtree(self.polygons)
+        ##rewrite for more efficiency and buffer for objects
+        while(self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
+            self.agent_pos = np.array(
+                [np.clip(r.uniform(self.goal_state[0] - self.horizontal_spawn_radius,
+                                self.goal_state[0] + self.horizontal_spawn_radius),
+                        self.observation_space.low[0], self.observation_space.high[0]),
+                np.clip(r.uniform(self.goal_state[1] - self.vertical_spawn_radius,
+                                self.goal_state[1]),
+                        self.observation_space.low[1], self.observation_space.high[1]),
+                0, self.max_range],
+                dtype=float)
+        """
         while any(polygon.intersects(Point(self.agent_pos[0], self.agent_pos[1])) for polygon in self.polygons):
             self.agent_pos = np.array(
                 [np.clip(r.uniform(self.goal_state[0] - self.horizontal_spawn_radius,
@@ -240,37 +239,15 @@ class mindstormBotEnv(gym.Env):
                         self.observation_space.low[1], self.observation_space.high[1]),
                 0, 0, 0, self.max_range],
                 dtype=float)
-        
-        # Spawn Radius Increase
-        if self.horizontal_spawn_radius <= 2:
-            self.horizontal_spawn_radius += self.spawn_increment
-        if self.vertical_spawn_radius <= 5.8:
-            self.vertical_spawn_radius += self.spawn_increment
-        if self.wall_length < 3:
-            self.wall_length += self.spawn_increment #self.spawn_increment
-        """
-        if self.episode_counter > 1000:
-            start_point = (-3, 4)
-            self.polygons[0] = self.get_wall_polygon(self.wall_center(start_point))
-        if self.episode_counter > 2500:
-            start_point = (0, 2)
-            self.polygons[1] = self.get_wall_polygon(self.wall_center(start_point))
-        if self.episode_counter > 4000:
-            start_point = (-3,0.5)
-            self.polygons[2] = self.get_wall_polygon(self.wall_center(start_point))
-        """
+        """      
 
-        self.polygons[0] = self.get_wall_line((r.uniform(-3,0),4))
-        self.polygons[1] = self.get_wall_line((r.uniform(-3,0),2))
-        self.polygons[2] = self.get_wall_line((r.uniform(-3,0),0.5))
-
-        self.spatial_index = STRtree(self.polygons)
-
+        #dynamic model update
+        self.wheel_velocity = [0,0]
         # Clip position to be in the bounds of the field
-        self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0] + 0.1,
-                                        self.observation_space.high[0] - 0.1)
-        self.agent_pos[1] = np.clip(self.agent_pos[1], self.observation_space.low[1] + 1,
-                                        self.observation_space.high[1] - 0.1)
+        self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0],
+                                        self.observation_space.high[0])
+        self.agent_pos[1] = np.clip(self.agent_pos[1], self.observation_space.low[1],
+                                        self.observation_space.high[1])
         self.counter = 0
         info = {}
 

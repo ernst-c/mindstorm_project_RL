@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     environment = 'mindstormBot'
     algorithm = 'PPO'
-    training_timesteps = 3000000
+    training_timesteps = 3500000
     t_s = 1/50
     #env = SyncVectorEnv([make_env for _ in range(num_envs)])
     n_envs = 8
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     model.learn(training_timesteps, reset_num_timesteps=False)
 
     video_folder = "/Desktop/workspaces/mindstorm_project_RL"
-    video_length = 500
+    video_length = 1400
     
     environment = 'mindstormBotEval-v0'
     env = make_vec_env(environment, n_envs=8)
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         #        obs[i] = env.reset()[i]
     env.close()
 
-    run_name = "dec15_1628"+"_"+str(training_timesteps)
+    run_name = "dec17"+"_"+str(training_timesteps)
 
     # Save the final trained model
     torch.save(model.policy.state_dict(), run_name + '.pt')
