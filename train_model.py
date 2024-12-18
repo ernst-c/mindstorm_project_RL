@@ -11,12 +11,16 @@ import gymnasium as gym
 from gymnasium.envs.registration import register
 from stable_baselines3.common.env_util import make_vec_env
 from gymnasium import make
-from stable_baselines3.common.vec_env import DummyVecEnv, VecVideoRecorder
+from stable_baselines3.common.vec_env import DummyVecEnv, VecVideoRecorder, SubprocVecEnv
 from sbx import DDPG, DQN, PPO
 """
 todo:
-
+look at seeds
+change dynamic model?
+only range finder
+more complicated track
 """
+from stable_baselines3.common.callbacks import EvalCallback
 
 import random
 import os
@@ -30,21 +34,19 @@ register(
             id='mindstormBotEval-v0',  # Use a valid format, e.g., '<name>-v<version>'
             entry_point='Eval_Environments.mindstormBot:mindstormBotEnv',  # Update with your actual module and class
         )
-
-#def make_env():
-#    return gym.make("mindstormBot-v0")  # Incorrect, extra quote
-
 if __name__ == '__main__':
 
-    environment = 'mindstormBot'
+    environment = 'mindstormBot-v0'
+    eval_environment = 'mindstormBotEval-v0'
     algorithm = 'PPO'
-    training_timesteps = 3500000
-    t_s = 1/50
-    #env = SyncVectorEnv([make_env for _ in range(num_envs)])
-    n_envs = 8
-    env = make_vec_env(environment, n_envs=n_envs)
-    #if environment == 'mindstormBot':
-    #    env = mindstormBot(t_s, rewardfunc=sparse_reward2d)
+    training_timesteps = 3000000
+    n_envs = 16
+    env = make_vec_env(environment, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
+    #eval_env = make_vec_env(eval_environment, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
+
+    #eval_callback = EvalCallback(eval_env,
+    #                            log_path="./logs/", eval_freq=50000,
+    #                            deterministic=True, render=True)
 
     #check_env(env)
 
@@ -56,7 +58,7 @@ if __name__ == '__main__':
     #np.random.seed(seed)
 
     if algorithm == 'PPO':
-        model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, seed=seed)
+        model = PPO('MlpPolicy', env, verbose=1, gamma=0.995, seed=None)
     elif algorithm == 'SAC':
         model = SAC('MlpPolicy', env, verbose=1, gamma=0.97, seed=seed)
     elif algorithm == 'A2C':
@@ -70,13 +72,15 @@ if __name__ == '__main__':
     #model.policy.load_state_dict(torch.load(weights_path, map_location=device))
     #model.policy.to(device)
     obs = env.reset()
+    #model.learn(training_timesteps, reset_num_timesteps=False,callback=eval_callback)
     model.learn(training_timesteps, reset_num_timesteps=False)
+    env.close()
 
     video_folder = "/Desktop/workspaces/mindstorm_project_RL"
-    video_length = 1400
-    
+    video_length = 600
+
     environment = 'mindstormBotEval-v0'
-    env = make_vec_env(environment, n_envs=8)
+    env = make_vec_env(environment, n_envs=16, vec_env_cls=SubprocVecEnv)
     env = VecVideoRecorder(env, video_folder,
                            record_video_trigger=lambda x: x == 0, video_length=video_length,
                            name_prefix=f"random-agent")
@@ -89,7 +93,7 @@ if __name__ == '__main__':
         #        obs[i] = env.reset()[i]
     env.close()
 
-    run_name = "dec17"+"_"+str(training_timesteps)
+    run_name = "dec18_1155"+"_"+str(training_timesteps)
 
     # Save the final trained model
     torch.save(model.policy.state_dict(), run_name + '.pt')

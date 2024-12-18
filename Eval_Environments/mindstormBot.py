@@ -1,14 +1,14 @@
 """
 todo:
-- spawn radius
-- improve dynamic model, scaling of map, range finder range scaling
-- add in transfer function
-- scale map correctly
-- range finder range scaling
+- check if improved dynamic model with linear velocity actually works
+- check if gamma should be changed
+- check if subprocenv actually matters
+- check if the reward function is correct, maybe distance based is better
+
 """
 
 
-from EOM.eom import dynamic_model_mindstorm, simple_dynamic_model
+from EOM.eom import dynamic_model_mindstorm, simple_dynamic_model, linear_velocity_steering_angle
 from EOM.rk4 import runge_kutta4
 import random as r
 import numpy as np
@@ -25,11 +25,11 @@ import pygame
 from shapely.strtree import STRtree
 
 class mindstormBotEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 50}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 20}
     # state = [x, z, xdot, zdot, theta], action = [Thrust, Theta_commanded], param = [mass, gain_const, time_const]
 
-    def __init__(self, t_s=1/50, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
-                 episode_steps=600, rewardfunc=sparse_reward2d, eom=dynamic_model_mindstorm,
+    def __init__(self, t_s=1/20, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
+                 episode_steps=800, rewardfunc=sparse_reward2d, eom=dynamic_model_mindstorm,
                  param=np.array([0.3,0.1]), rk4=runge_kutta4,render_mode=None):
         #params: [wheel base, wheel radius]
         self.wheel_base = param[0]
@@ -41,7 +41,7 @@ class mindstormBotEnv(gym.Env):
         self.window = None
         self.clock = None
         self.window_width = 200
-        self.window_height = 200
+        self.window_height = 270
         #super(mindstormBotEnv, self).__init__()
 
         self.episode_steps = episode_steps
@@ -56,25 +56,18 @@ class mindstormBotEnv(gym.Env):
         #range finder
         self.max_range = 1
 
-        # Define the wall's start and end points
-        start_point = (-20,0)
-
+        # Define the wall's length
         self.wall_length = 0.4
-        # Create a LineString representing the wall's center line
-        wall_center = LineString([start_point, (start_point[0]+self.wall_length,start_point[1])])
 
         # Define the wall's thickness (0.2 in this case)
-        self.horizontal_spawn_radius = 0.25
-        self.vertical_spawn_radius = 1.5
+        self.horizontal_spawn_radius = 0.8
+        self.vertical_spawn_radius = 2.5
                 
-
-        # Create a polygon representing the wall by buffering the LineString
-        self.polygons = [0,0,0]
         #add long y-direction walls as border of field:
         
         # Used for simulations
-        self.episode_counter = 0
-        self.spawn_increment = 1/2500
+        self.episode_counter = 10000
+        self.spawn_increment = 1/750
         #left wheel pwm, right wheel pwm;
         self.action_space = spaces.Box(low=np.array([-1, -1]),
                                        high=np.array([1, 1]), dtype=float)
@@ -86,24 +79,17 @@ class mindstormBotEnv(gym.Env):
             dtype=float
         )
         self.reward_range = (-float("inf"), float("inf"))
-        self.agent_pos = [0,0,0,0,0,0]
+        self.agent_pos = [0,0,0,0]
 
         #dynamic model
-        self.wheel_velocity = [0,0]
+        if eom == linear_velocity_steering_angle:
+            self.linear_velocity = 0
+        elif eom == dynamic_model_mindstorm:
+            self.wheel_velocity = [0,0]
         # optimization
         self.goal_range = 0.15
-        self.polygons = [0,0,0]
-        start_point = (-3, 4)   
-        self.polygons[0] = self.get_wall_line(start_point)
-        start_point = (0, 2)
-        self.polygons[1] = self.get_wall_line(start_point)
-        start_point = (-3,0.5)
-        self.polygons[2] = self.get_wall_line(start_point)
-        self.polygons.append(LineString([(-0.4,0),(-0.4,1.6)]))
-        self.polygons.append(LineString([(0.4,0),(0.4,1.6)]))
-        #border behind goal:
-        self.polygons.append(LineString([(-0.4,1.6),(0.4,1.6)]))
-
+        #self.polygons = self.create_simple_map()
+        self.polygons = self.create_large_map(0)
         self.spatial_index = STRtree(self.polygons)
         self.counter = 0
         #rendering
@@ -115,6 +101,50 @@ class mindstormBotEnv(gym.Env):
 
     def get_wall_line(self, start_point):
         return LineString([start_point, (start_point[0] + self.wall_length, start_point[1])])
+
+    def create_simple_map(self, random=False):
+        polygons = [0,0,0]
+        if not random:
+            start_point = (-3, 4)   
+            polygons[0] = self.get_wall_line(start_point)
+            start_point = (0, 2)
+            polygons[1] = self.get_wall_line(start_point)
+            start_point = (-3,0.5)
+            polygons[2] = self.get_wall_line(start_point)
+        else:
+            polygons[0] = self.get_wall_line((r.choice([-0.4,0]),0.4))
+            polygons[1] = self.get_wall_line((r.choice([-0.4,0]),0.8))
+            polygons[2] = self.get_wall_line((r.choice([-0.4,0]),1.2))
+
+        polygons.append(LineString([(-0.4,0),(-0.4,1.6)]))
+        polygons.append(LineString([(0.4,0),(0.4,1.6)]))
+        polygons.append(LineString([(-0.4,1.6),(0.4,1.6)]))
+
+        return polygons
+    
+    def create_large_map(self, episode_counter):
+        self.goal_state = np.array([0, 0.5, 0, 0, 0], dtype=float) 
+        polygons = [0,0,0,0,0,0,0]
+        ###add border walls of field to polygons at x=-1 and x=1 and vertically to from y=0 to y=2.5
+        polygons.append(LineString([(-0.8,0),(-0.8,2.5)]))
+        polygons.append(LineString([(0.8,0),(0.8,2.5)]))
+        polygons.append(LineString([(-0.8,0),(0.8,0)]))
+        polygons.append(LineString([(-0.8,2.5),(0.8,2.5)]))
+        ###after episode_counter = 500, add small wall in the middle of field which increases in length until episode counter = 1000
+        if episode_counter > 500:
+            wall_length = min(0.1 + (episode_counter-500)*0.0001,1)
+            polygons[6] = (LineString([(0,0.5),(0,0.5+wall_length)]))
+        else:
+            polygons[6] = (LineString([(0,0.5),(0,0.51)]))
+        ###add randomized horizontal obstacle walls:
+        polygons[0] = self.get_wall_line((r.choice([-0.8,-0.4]),0.6))
+        polygons[1] = self.get_wall_line((r.choice([-0.8,-0.4]),1.2))
+        polygons[2] = self.get_wall_line((r.choice([-0.8,-0.4]),1.8))
+        polygons[3] = self.get_wall_line((r.choice([0,0.4]),0.6))
+        polygons[4] = self.get_wall_line((r.choice([0,0.4]),1.2))
+        polygons[5] = self.get_wall_line((r.choice([0,0.4]),1.8))
+
+        return polygons
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -158,8 +188,8 @@ class mindstormBotEnv(gym.Env):
         self.real_action = np.array([action[0], action[1]], dtype=float)
         #fix orientation value issues for training
         self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
-        movement = self.EOM(self.agent_pos, self.real_action, self.param, self.wheel_velocity)
-
+        movement = self.EOM(self.agent_pos, self.real_action, self.param, self.wheel_velocity, self.T_s)
+        #other model#movement = self.EOM(self.agent_pos, self.real_action, self.param, self.linear_velocity, self.T_s)
         ray = self.ray_caster()
         #set laser detected range to closest detected object
         collision = False   
@@ -181,8 +211,11 @@ class mindstormBotEnv(gym.Env):
         self.agent_pos[0] += movement[0]
         self.agent_pos[1] += movement[1]
         self.agent_pos[2] += movement[2]
-        self.wheel_velocity[0] = movement[4]
-        self.wheel_velocity[1] = movement[5]
+        if self.EOM == dynamic_model_mindstorm:
+            self.wheel_velocity[0] = movement[4]
+            self.wheel_velocity[1] = movement[5]
+        elif self.EOM == linear_velocity_steering_angle:
+            self.linear_velocity = movement[4]
         self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
 
         observation = self.agent_pos
@@ -205,16 +238,15 @@ class mindstormBotEnv(gym.Env):
                                    0, self.max_range], dtype=float)
 
         # Spawn Radius Increase
-        if self.horizontal_spawn_radius <= 0.25:
+        if self.horizontal_spawn_radius <= 0.8:
             self.horizontal_spawn_radius += self.spawn_increment
-        if self.vertical_spawn_radius <= 1.5:
+        if self.vertical_spawn_radius <= 2.5:
             self.vertical_spawn_radius += self.spawn_increment
         if self.wall_length < 0.4:
             self.wall_length += self.spawn_increment #self.spawn_increment
 
-        self.polygons[0] = self.get_wall_line((r.choice([-0.4,0]),0.4))
-        self.polygons[1] = self.get_wall_line((r.choice([-0.4,0]),0.8))
-        self.polygons[2] = self.get_wall_line((r.choice([-0.4,0]),1.2))
+        #self.polygons = self.create_simple_map(random=True)
+        self.polygons = self.create_large_map(self.episode_counter)
 
         self.spatial_index = STRtree(self.polygons)
         ##rewrite for more efficiency and buffer for objects
@@ -240,9 +272,11 @@ class mindstormBotEnv(gym.Env):
                 0, 0, 0, self.max_range],
                 dtype=float)
         """      
-
         #dynamic model update
-        self.wheel_velocity = [0,0]
+        if self.EOM == dynamic_model_mindstorm:
+            self.wheel_velocity = [0,0]
+        elif self.EOM == linear_velocity_steering_angle:
+            self.linear_velocity = 0
         # Clip position to be in the bounds of the field
         self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0],
                                         self.observation_space.high[0])
