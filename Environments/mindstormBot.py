@@ -68,11 +68,7 @@ class mindstormBotEnv(gym.Env):
         # Used for simulations
         self.episode_counter = 0
         self.spawn_increment = 1/750
-        if eom == discrete_model:
-            self.action_space = spaces.Discrete(4)
-        else:
-            self.action_space = spaces.Box(low=np.array([-1, -1]),
-                                       high=np.array([1, 1]), dtype=float)        
+        self.action_space = spaces.Discrete(4)
         # States are: [x, z, x_dot. z_dot, Theta, Theta_dot]
         # new states are: [x,y, x_dot, z_dot, alpha]
         self.observation_space = spaces.Box(
@@ -83,15 +79,10 @@ class mindstormBotEnv(gym.Env):
         self.reward_range = (-float("inf"), float("inf"))
         self.agent_pos = [0,0,0,0]
 
-        #dynamic model
-        if eom == linear_velocity_steering_angle:
-            self.linear_velocity = 0
-        elif eom == dynamic_model_mindstorm:
-            self.wheel_velocity = [0,0]
         # optimization
         self.goal_range = 0.15
         #self.polygons = self.create_simple_map()
-        self.polygons = self.create_large_map(0)
+        self.polygons = self.create_large_map(self.episode_counter)
         self.spatial_index = STRtree(self.polygons)
         self.counter = 0
         #rendering
@@ -187,14 +178,10 @@ class mindstormBotEnv(gym.Env):
         return self.max_range
 
     def step(self, action):
-        #self.real_action = np.array([action[0], action[1]], dtype=float)
-        #fix orientation value issues for training
         self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
-        #movement = self.EOM(self.agent_pos, self.real_action, self.param, self.wheel_velocity, self.T_s)
-        #movement = self.EOM(self.agent_pos, self.real_action, self.param, self.linear_velocity, self.T_s)
         movement = self.EOM(self.agent_pos, action)
         ray = self.ray_caster()
-        #set laser detected range to closest detected object
+
         collision = False   
         
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
@@ -214,11 +201,6 @@ class mindstormBotEnv(gym.Env):
         self.agent_pos[0] += movement[0]
         self.agent_pos[1] += movement[1]
         self.agent_pos[2] += movement[2]
-        if self.EOM == dynamic_model_mindstorm:
-            self.wheel_velocity[0] = movement[4]
-            self.wheel_velocity[1] = movement[5]
-        elif self.EOM == linear_velocity_steering_angle:
-            self.linear_velocity = movement[4]
         self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
 
         observation = self.agent_pos
@@ -236,11 +218,6 @@ class mindstormBotEnv(gym.Env):
     def reset(self, seed=None, options=None):
 
         self.episode_counter += 1
-        """
-        self.agent_pos = np.array([r.uniform(self.goal_state[0]-self.horizontal_spawn_radius,self.goal_state[0]+self.horizontal_spawn_radius),
-                                   r.uniform(self.goal_state[1]-self.vertical_spawn_radius,self.goal_state[1]+self.vertical_spawn_radius),
-                                   0, self.max_range], dtype=float)
-        """
         self.agent_pos = np.array([r.uniform(self.goal_state[0]-self.horizontal_spawn_radius,self.goal_state[0]+self.horizontal_spawn_radius),
                             r.uniform(self.goal_state[1],self.goal_state[1]+self.vertical_spawn_radius),
                             0, self.max_range], dtype=float)
@@ -268,23 +245,7 @@ class mindstormBotEnv(gym.Env):
                         self.observation_space.low[1], self.observation_space.high[1]),
                 0, self.max_range],
                 dtype=float)
-        """
-        while any(polygon.intersects(Point(self.agent_pos[0], self.agent_pos[1])) for polygon in self.polygons):
-            self.agent_pos = np.array(
-                [np.clip(r.uniform(self.goal_state[0] - self.horizontal_spawn_radius,
-                                self.goal_state[0] + self.horizontal_spawn_radius),
-                        self.observation_space.low[0], self.observation_space.high[0]),
-                np.clip(r.uniform(self.goal_state[1] - self.vertical_spawn_radius,
-                                self.goal_state[1]),
-                        self.observation_space.low[1], self.observation_space.high[1]),
-                0, 0, 0, self.max_range],
-                dtype=float)
-        """      
-        #dynamic model update
-        if self.EOM == dynamic_model_mindstorm:
-            self.wheel_velocity = [0,0]
-        elif self.EOM == linear_velocity_steering_angle:
-            self.linear_velocity = 0
+
         # Clip position to be in the bounds of the field
         self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0],
                                         self.observation_space.high[0])
