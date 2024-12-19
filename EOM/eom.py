@@ -9,14 +9,14 @@ def discrete_model(x,u):
     x_dot = 0
     y_dot = 0
     if u == 0:
-        x_dot = sin(alpha)*0.05
-        y_dot = cos(alpha)*0.05
+        x_dot = sin(alpha)*0.1
+        y_dot = cos(alpha)*0.1
+    #elif u == 1:
+    #    x_dot = -sin(alpha)*0.1
+    #    y_dot = -cos(alpha)*0.1
     elif u == 1:
-        x_dot = -sin(alpha)*0.05
-        y_dot = -cos(alpha)*0.05
-    elif u == 2:
         alpha_dot = pi/2
-    elif u == 3:
+    elif u == 2:
         alpha_dot = -pi/2
 
     dx = [x_dot, y_dot, alpha_dot, 0]

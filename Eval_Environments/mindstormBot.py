@@ -68,9 +68,7 @@ class mindstormBotEnv(gym.Env):
         # Used for simulations
         self.episode_counter = 100000
         self.spawn_increment = 1/750
-        self.action_space = spaces.Discrete(4)
-        # States are: [x, z, x_dot. z_dot, Theta, Theta_dot]
-        # new states are: [x,y, x_dot, z_dot, alpha]
+        self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Box(
             low=np.array([-0.8, 0, -2*pi,0]),
             high=np.array([0.8, 2.5, 2*pi,self.max_range]),
@@ -204,7 +202,7 @@ class mindstormBotEnv(gym.Env):
         self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
 
         observation = self.agent_pos
-        reward, terminated = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range, collision)
+        reward, terminated = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range, collision, action)
         self.counter += 1
         self.Timesteps += 1
         truncated = False

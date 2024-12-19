@@ -68,9 +68,8 @@ class mindstormBotEnv(gym.Env):
         # Used for simulations
         self.episode_counter = 0
         self.spawn_increment = 1/750
-        self.action_space = spaces.Discrete(4)
-        # States are: [x, z, x_dot. z_dot, Theta, Theta_dot]
-        # new states are: [x,y, x_dot, z_dot, alpha]
+        self.action_space = spaces.Discrete(3)
+
         self.observation_space = spaces.Box(
             low=np.array([-0.8, 0, -2*pi,0]),
             high=np.array([0.8, 2.5, 2*pi,self.max_range]),
@@ -204,7 +203,7 @@ class mindstormBotEnv(gym.Env):
         self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
 
         observation = self.agent_pos
-        reward, terminated = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range, collision)
+        reward, terminated = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range, collision, action)
         self.counter += 1
         self.Timesteps += 1
         truncated = False
@@ -264,6 +263,8 @@ class mindstormBotEnv(gym.Env):
         if self.window is None and self.render_mode == "human":
             pygame.init()
             pygame.display.init()
+            pygame.font.init()  # Initialize the font module
+
             self.window = pygame.display.set_mode(
                 (self.window_width, self.window_height)
             )
@@ -291,14 +292,19 @@ class mindstormBotEnv(gym.Env):
         pygame.draw.line(canvas, (0, 0, 0), (int(self.ray.coords[0][0] * 100)+self.window_width/2, int(self.ray.coords[0][1] * 100)),
                          (int(self.ray.coords[1][0] * 100)+self.window_width/2, int(self.ray.coords[1][1] * 100)), 1)
 
+        # Display the agent variable as text
+        font = pygame.font.Font(None, 24)  # Use the default font with size 24
+        text = font.render(f"{self.agent_pos[3]}", True, (0, 0, 0))  # Render text in black
+        text_rect = text.get_rect()
+        text_rect.bottomright = (self.window_width - 10, self.window_height - 10)  # Position at bottom-right corner
+        canvas.blit(text, text_rect)
+
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
             self.window.blit(canvas, canvas.get_rect())
             pygame.event.pump()
             pygame.display.update()
 
-            # We need to ensure that human-rendering occurs at the predefined framerate.
-            # The following line will automatically add a delay to keep the framerate stable.
             self.clock.tick(self.metadata["render_fps"])
         else:  # rgb_array
             return np.transpose(
