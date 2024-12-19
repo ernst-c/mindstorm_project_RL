@@ -18,7 +18,7 @@ def sparse_reward2d(next_state, goal_state, observation_space, goal_range, colli
     obstacle_reward = 0
 
     if collision:
-        obstacle_reward = -6
+        obstacle_reward = -150 #-6
     
     total_reward = goal_reward_distance + bounds_reward + obstacle_reward
     done = (goal_reward_distance == 0)

@@ -3,6 +3,25 @@ import numpy as np
 from math import cos, sin, pi, sqrt
 
 @jit
+def discrete_model(x,u):
+    alpha = x[2]
+    alpha_dot = 0
+    x_dot = 0
+    y_dot = 0
+    if u == 0:
+        x_dot = sin(alpha)*0.05
+        y_dot = cos(alpha)*0.05
+    elif u == 1:
+        x_dot = -sin(alpha)*0.05
+        y_dot = -cos(alpha)*0.05
+    elif u == 2:
+        alpha_dot = pi/2
+    elif u == 3:
+        alpha_dot = -pi/2
+
+    dx = [x_dot, y_dot, alpha_dot, 0]
+    return dx
+
 def simple_dynamic_model(x,u, param):
     v_body_des = u[0]
     alpha_des = u[1]*0.9*pi
@@ -20,16 +39,14 @@ def linear_velocity_steering_angle(x,u, param, T_s, current_linear_velocity):
     #u[1] desired steering angle
 
     #x = x, y, alpha, range_finder, current_linear_velocity
-    
-    
     r = param[1]
     L = param[0]
     
     linear_velocity_des = u[0]*1.2
-    linear_velocity_new = 0.05*linear_velocity_des + 0.95*current_linear_velocity
+    linear_velocity_new = 0.1*linear_velocity_des + 0.9*current_linear_velocity
 
     steering_angle_des = u[1]*pi
-    steering_angle_new = 0.05*steering_angle_des + 0.95*x[2]
+    steering_angle_new = 0.1*steering_angle_des + 0.9*x[2]
 
     x_dot = linear_velocity_new*np.sin(steering_angle_new)*T_s
     y_dot = linear_velocity_new*np.cos(steering_angle_new)*T_s

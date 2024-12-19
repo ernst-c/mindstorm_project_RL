@@ -16,7 +16,7 @@ from sbx import DDPG, DQN, PPO
 """
 todo:
 look at seeds
-change dynamic model?
+change dynamic model? --> seems to work now, that timestep has been decreased
 only range finder
 more complicated track
 """
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     environment = 'mindstormBot-v0'
     eval_environment = 'mindstormBotEval-v0'
     algorithm = 'PPO'
-    training_timesteps = 3000000
+    training_timesteps = 6000000
     n_envs = 16
     env = make_vec_env(environment, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
     #eval_env = make_vec_env(eval_environment, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     #np.random.seed(seed)
 
     if algorithm == 'PPO':
-        model = PPO('MlpPolicy', env, verbose=1, gamma=0.995, seed=None)
+        model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, seed=None)
     elif algorithm == 'SAC':
         model = SAC('MlpPolicy', env, verbose=1, gamma=0.97, seed=seed)
     elif algorithm == 'A2C':
