@@ -29,7 +29,7 @@ class mindstormBotEnv(gym.Env):
     # state = [x, z, xdot, zdot, theta], action = [Thrust, Theta_commanded], param = [mass, gain_const, time_const]
 
     def __init__(self, t_s=1/20, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
-                 episode_steps=600, rewardfunc=sparse_reward2d, eom=discrete_model,
+                 episode_steps=200, rewardfunc=sparse_reward2d, eom=discrete_model,
                  param=np.array([0.3,0.1]), rk4=runge_kutta4,render_mode=None):
         #params: [wheel base, wheel radius]
         self.wheel_base = param[0]
@@ -57,11 +57,11 @@ class mindstormBotEnv(gym.Env):
         self.max_range = 1
 
         # Define the wall's length
-        self.wall_length = 0.1
+        self.wall_length = 0.4
 
         # Define the wall's thickness (0.2 in this case)
-        self.horizontal_spawn_radius = 0.1
-        self.vertical_spawn_radius = 0.1
+        self.horizontal_spawn_radius = 0.8
+        self.vertical_spawn_radius = 2.5
                 
         #add long y-direction walls as border of field:
         
@@ -71,10 +71,13 @@ class mindstormBotEnv(gym.Env):
         self.action_space = spaces.Discrete(3)
 
         self.observation_space = spaces.Box(
-            low=np.array([-0.8, 0, -2*pi,0]),
-            high=np.array([0.8, 2.5, 2*pi,self.max_range]),
+            low=np.array([-1, -1, -1, -1]), #actual min: -0.8, 0, -pi, -1
+            high=np.array([1, 1, 1, 1]), #actual max: 0.8, 2.5, pi, 1
             dtype=float
         )
+        #normalization
+        self.unscaled_obs_space_low = np.array([-0.8, 0, -pi, -1])
+        self.unscaled_obs_space_high = np.array([0.8, 2.5, pi, 1])
         self.reward_range = (-float("inf"), float("inf"))
         self.agent_pos = [0,0,0,0]
 
@@ -84,6 +87,11 @@ class mindstormBotEnv(gym.Env):
         self.polygons = self.create_large_map(self.episode_counter)
         self.spatial_index = STRtree(self.polygons)
         self.counter = 0
+        #reward function
+        #x -0.5, -0.3 y 0.7, 0.9
+        self.reached_goals = [False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False]
+        self.goal_points = [(-0.4, 1),(-0.4, 1.75),(0.4, 1.75),(0.4, 1)]
         #rendering
         self.ray = LineString([(0,0),(0,0)])
         #collision
@@ -123,11 +131,6 @@ class mindstormBotEnv(gym.Env):
         polygons.append(LineString([(-0.8,0),(0.8,0)]))
         polygons.append(LineString([(-0.8,2.5),(0.8,2.5)]))
         ###after episode_counter = 500, add small wall in the middle of field which increases in length until episode counter = 1000
-        if episode_counter > 500:
-            wall_length = min(0.1 + (episode_counter-500)*0.001,1.5)
-            polygons[6] = (LineString([(0,0.5),(0,0.5+wall_length)]))
-        else:
-            polygons[6] = (LineString([(0,0.5),(0,0.51)]))
         ###add randomized horizontal obstacle walls:
         polygons[0] = (LineString([(-0.8,0.6),(0,0.6)]))
         polygons[1] = self.get_wall_line((r.choice([-0.8,-0.4]),1.2))   
@@ -135,6 +138,7 @@ class mindstormBotEnv(gym.Env):
         polygons[3] = self.get_wall_line((r.choice([0,0.4]),0.6))
         polygons[4] = self.get_wall_line((r.choice([0,0.4]),1.2))
         polygons[5] = self.get_wall_line((r.choice([0,0.4]),1.8))
+        polygons[6] = (LineString([(0,0.5),(0,2)]))
 
         return polygons
 
@@ -176,6 +180,18 @@ class mindstormBotEnv(gym.Env):
         # Default fallback, no valid intersection
         return self.max_range
 
+    def normalize_observation(self, observation):
+        # Create a copy of the observation
+        normalized = np.copy(observation)
+        
+        # Loop through each element of the observation if it's a multi-dimensional space
+        for i in range(len(observation)):
+            low = self.unscaled_obs_space_low[i]
+            high = self.unscaled_obs_space_high[i]
+            normalized[i] = (2 * (observation[i] - low) / (high - low)) - 1
+        
+        return normalized
+
     def step(self, action):
         self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
         movement = self.EOM(self.agent_pos, action)
@@ -185,7 +201,14 @@ class mindstormBotEnv(gym.Env):
         
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
-            
+        for i in range(len(self.goal_points)):
+            if (np.abs(self.agent_pos[0]-self.goal_points[i][0]) < 0.4 and np.abs(self.agent_pos[1]-self.goal_points[i][1]) < 0.15):
+                if not self.goal_reached_in_episode[i]:
+                    self.reached_goals[i] = True
+                    self.goal_reached_in_episode[i] = True
+                else:
+                    self.reached_goals[i] = False
+        
         self.agent_pos[3] = self.max_range
         query_result = self.spatial_index.query(ray, predicate='intersects')
         if len(query_result) > 0:
@@ -200,16 +223,18 @@ class mindstormBotEnv(gym.Env):
         self.agent_pos[0] += movement[0]
         self.agent_pos[1] += movement[1]
         self.agent_pos[2] += movement[2]
-        self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
+        self.agent_pos = np.clip(self.agent_pos, self.unscaled_obs_space_low, self.unscaled_obs_space_high)
 
         observation = self.agent_pos
-        reward, terminated = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range, collision, action)
+
+        reward, terminated = self.rewardfunc(observation, self.goal_state, self.observation_space, self.goal_range, collision, action, self.reached_goals)
         self.counter += 1
         self.Timesteps += 1
         truncated = False
         if self.counter == self.episode_steps:
             truncated = True
 
+        observation = self.normalize_observation(observation)
         info = {}
 
         return observation, reward, terminated,truncated, info
@@ -217,9 +242,14 @@ class mindstormBotEnv(gym.Env):
     def reset(self, seed=None, options=None):
 
         self.episode_counter += 1
+        """
         self.agent_pos = np.array([r.uniform(self.goal_state[0]-self.horizontal_spawn_radius,self.goal_state[0]+self.horizontal_spawn_radius),
                             r.uniform(self.goal_state[1],self.goal_state[1]+self.vertical_spawn_radius),
                             0, self.max_range], dtype=float)
+        """
+        self.agent_pos = np.array([r.uniform(-0.3,-0.5),
+                    1, #r.uniform(0.7, 1),
+                    0, self.max_range], dtype=float)
 
         # Spawn Radius Increase
         if self.horizontal_spawn_radius <= 0.8:
@@ -238,19 +268,22 @@ class mindstormBotEnv(gym.Env):
             self.agent_pos = np.array(
                 [np.clip(r.uniform(self.goal_state[0] - self.horizontal_spawn_radius,
                                 self.goal_state[0] + self.horizontal_spawn_radius),
-                        self.observation_space.low[0], self.observation_space.high[0]),
+                        self.unscaled_obs_space_low[0], self.unscaled_obs_space_high[0]),
                 np.clip(r.uniform(self.goal_state[1] - self.vertical_spawn_radius,
                                 self.goal_state[1]),
-                        self.observation_space.low[1], self.observation_space.high[1]),
+                        self.unscaled_obs_space_low[1], self.unscaled_obs_space_high[1]),
                 0, self.max_range],
                 dtype=float)
 
         # Clip position to be in the bounds of the field
-        self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0],
-                                        self.observation_space.high[0])
-        self.agent_pos[1] = np.clip(self.agent_pos[1], self.observation_space.low[1],
-                                        self.observation_space.high[1])
+        self.agent_pos[0] = np.clip(self.agent_pos[0], self.unscaled_obs_space_low[0],
+                                        self.unscaled_obs_space_high[0])
+        self.agent_pos[1] = np.clip(self.agent_pos[1], self.unscaled_obs_space_low[1],
+                                        self.unscaled_obs_space_high[1])
         self.counter = 0
+        # Reset the goal state
+        self.reached_goals = [False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False]
         info = {}
 
         return self.agent_pos, info
@@ -263,7 +296,6 @@ class mindstormBotEnv(gym.Env):
         if self.window is None and self.render_mode == "human":
             pygame.init()
             pygame.display.init()
-            pygame.font.init()  # Initialize the font module
 
             self.window = pygame.display.set_mode(
                 (self.window_width, self.window_height)
@@ -291,13 +323,6 @@ class mindstormBotEnv(gym.Env):
         #ray
         pygame.draw.line(canvas, (0, 0, 0), (int(self.ray.coords[0][0] * 100)+self.window_width/2, int(self.ray.coords[0][1] * 100)),
                          (int(self.ray.coords[1][0] * 100)+self.window_width/2, int(self.ray.coords[1][1] * 100)), 1)
-
-        # Display the agent variable as text
-        font = pygame.font.Font(None, 24)  # Use the default font with size 24
-        text = font.render(f"{self.agent_pos[3]}", True, (0, 0, 0))  # Render text in black
-        text_rect = text.get_rect()
-        text_rect.bottomright = (self.window_width - 10, self.window_height - 10)  # Position at bottom-right corner
-        canvas.blit(text, text_rect)
 
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window

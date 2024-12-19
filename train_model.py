@@ -24,6 +24,7 @@ from stable_baselines3.common.callbacks import EvalCallback
 
 import random
 import os
+import shutil
 device = torch.device('cuda')
 render = True
 register(
@@ -34,13 +35,14 @@ register(
             id='mindstormBotEval-v0',  # Use a valid format, e.g., '<name>-v<version>'
             entry_point='Eval_Environments.mindstormBot:mindstormBotEnv',  # Update with your actual module and class
         )
+
 if __name__ == '__main__':
 
     environment = 'mindstormBot-v0'
     eval_environment = 'mindstormBotEval-v0'
     algorithm = 'PPO'
-    training_timesteps = 3000000
-    n_envs = 16
+    training_timesteps = 6000000
+    n_envs = 16 
     env = make_vec_env(environment, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
     #eval_env = make_vec_env(eval_environment, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
 
@@ -56,16 +58,20 @@ if __name__ == '__main__':
     #random.seed(seed)
     #torch.manual_seed(seed)
     #np.random.seed(seed)
+    log_dir = "/Desktop/workspaces/mindstorm_project_RL/logs/"
+    algorithm_folder = "PPO_0"  # Folder name to delete
+    full_log_dir = os.path.join(log_dir, algorithm_folder)
+    shutil.rmtree(full_log_dir)  # Delete the folder and its contents
 
     if algorithm == 'PPO':
-        model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, seed=None)
+        model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, seed=None, tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
     elif algorithm == 'SAC':
         model = SAC('MlpPolicy', env, verbose=1, gamma=0.97, seed=seed)
     elif algorithm == 'A2C':
         model = A2C('MlpPolicy', env, verbose=1, seed=seed)
     elif algorithm == 'TD3':
         model = TD3('MlpPolicy', env, verbose=1, gamma=0.97, seed=seed)
-    
+
     #load pre-trained model
     #model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, seed=seed)
     #weights_path = '/home/ernst/thesis/InclinedDroneLander/may11_A20_3000000render.pt'
