@@ -1,3 +1,4 @@
 *.pt
 *.mp4
 /rl-baselines3-zoo/
+/videos/

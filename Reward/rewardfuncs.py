@@ -4,23 +4,15 @@ from math import cos, sin
 import numpy as np
 #maybe break if in polygon?
 
-def sparse_reward2d(next_state, goal_state, observation_space, goal_range, collision, action, reached_goals):
+def sparse_reward2d(next_state, goal_state, goal_range, collision):
 
     done = False
-    goal_reward_distance = 100 * int(abs(next_state[0] - goal_state[0]) < goal_range and
+    total_goal_reward_distance = 1 * int(abs(next_state[0] - goal_state[0]) < goal_range and
                             abs(next_state[1] - goal_state[1]) < goal_range)
-    
-    if collision or goal_reward_distance == 100:
+
+    if collision or total_goal_reward_distance == 1:
         done = True
 
-    checkpoint_reward = 0
-    #goal points
-    for goal in reached_goals:
-        if goal:
-            checkpoint_reward += 5
-
-
-
-    total_reward = goal_reward_distance + checkpoint_reward
+    total_reward = total_goal_reward_distance
 
     return total_reward, done
