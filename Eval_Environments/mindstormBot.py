@@ -49,14 +49,9 @@ class mindstormBotEnv(gym.Env):
 
         # Define the wall's length
         self.wall_length = 0.4
-
-        # Define the wall's thickness (0.2 in this case)
-        self.horizontal_spawn_radius = 0.8
-        self.vertical_spawn_radius = 2.5
                         
         # Used for simulations
         self.episode_counter = 0
-        self.spawn_increment = 1/750
         self.action_space = spaces.Discrete(3)
 
         self.observation_space = spaces.Box(
