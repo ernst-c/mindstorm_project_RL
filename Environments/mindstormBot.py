@@ -51,8 +51,8 @@ class mindstormBotEnv(gym.Env):
         self.wall_length = 0.4
 
         # Define the wall's thickness (0.2 in this case)
-        self.horizontal_spawn_radius = 0.8
-        self.vertical_spawn_radius = 2.5
+        self.horizontal_spawn_radius = 0.1
+        self.vertical_spawn_radius = 0.1
                         
         # Used for simulations
         self.episode_counter = 0
@@ -205,6 +205,39 @@ class mindstormBotEnv(gym.Env):
 
         self.polygons = self.create_large_map()
         self.spatial_index = STRtree(self.polygons)
+
+        #curriculum learning:
+
+        #first zone: spawn radius from top left corner to top right corner. 
+        if self.episode_counter < 300:
+            factor = self.episode_counter/300
+            self.agent_pos = np.array([r.uniform(self.goal_state[0], factor*self.observation_space.high[0]),
+                            r.uniform(self.goal_state[1]-factor*0.25, factor*0.25),
+                            0, self.max_range],
+                            dtype=float)
+        #second zone: spawn radius from top right corner to bottom right corner.
+        elif self.episode_counter < 600:
+            factor = (self.episode_counter-300)/300
+            self.agent_pos = np.array([r.uniform(self.observation_space.high[0]/2-factor*self.observation_space.high[0]/2, self.observation_space.high[0]*factor),
+                            r.uniform(self.observation_space.high[1]-factor*(abs(self.observation_space.low[1]+self.observation_space.high[1])), self.observation_space.high[1]),
+                            0, self.max_range],
+                            dtype=float)
+        #third zone: spawn radius from bottom right corner to bottom left corner.
+        elif self.episode_counter < 900:
+            factor = (self.episode_counter-600)/300
+            self.agent_pos = np.array([r.uniform(self.observation_space.high[0]-factor*(abs(self.observation_space.low[0]+self.observation_space.high[0])), self.observation_space.high[0]),
+                            r.uniform(2.0, 2.5),
+                            0, self.max_range],
+                            dtype=float)
+        #fourth zone: spawn radius from starting zone to bottom left corner. 
+        else:
+            self.agent_pos = np.array([r.uniform(-0.8,0),
+                            r.uniform(1.2,2.25),
+                            0, self.max_range],
+                            dtype=float)
+
+
+
 
         self.agent_pos = np.array([r.uniform(-0.3,-0.5),
                             r.uniform(0.7,0.9),
