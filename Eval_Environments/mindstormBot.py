@@ -73,6 +73,11 @@ class mindstormBotEnv(gym.Env):
         self.ray = LineString([(0,0),(0,0)])
         #collision
         self.collision_range = 0.1
+        #checkpoints
+        self.reached_goals = [False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False]
+        self.goal_points = [(-0.4, 1),(-0.4, 1.75),(0.4, 1.75),(0.4, 1)]
+
 
         self.reset()
         self.seed()
@@ -163,6 +168,16 @@ class mindstormBotEnv(gym.Env):
 
         collision = False   
         
+        #checkpoints
+        for i in range(len(self.goal_points)):
+            if (np.abs(self.agent_pos[0]-self.goal_points[i][0]) < 0.4 and np.abs(self.agent_pos[1]-self.goal_points[i][1]) < 0.15):
+                if not self.goal_reached_in_episode[i]:
+                    self.reached_goals[i] = True
+                    self.goal_reached_in_episode[i] = True
+                else:
+                    self.reached_goals[i] = False
+
+
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
         
@@ -184,7 +199,7 @@ class mindstormBotEnv(gym.Env):
 
         observation = self.agent_pos
 
-        reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision)
+        reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision, self.reached_goals)
         self.counter += 1
         self.Timesteps += 1
         truncated = False
@@ -218,6 +233,10 @@ class mindstormBotEnv(gym.Env):
         self.agent_pos[1] = np.clip(self.agent_pos[1], self.observation_space.low[1],
                                         self.observation_space.high[1])
         self.counter = 0
+
+        #checkpoints
+        self.reached_goals = [False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False]
 
         info = {}
 
