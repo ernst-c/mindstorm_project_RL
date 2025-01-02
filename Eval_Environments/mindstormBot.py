@@ -27,7 +27,7 @@ class mindstormBotEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
     def __init__(self, t_s=1/20, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
-                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=discrete_model, render_mode=None):
+                 episode_steps=600, rewardfunc=sparse_reward2d, eom=discrete_model, render_mode=None):
 
         #rendering
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -72,16 +72,13 @@ class mindstormBotEnv(gym.Env):
         #rendering
         self.ray = LineString([(0,0),(0,0)])
         #collision
-<<<<<<< HEAD
         self.collision_range = 0.025
         #checkpoints
-        self.reached_goals = [False, False, False, False, False, False]
-        self.goal_reached_in_episode = [False, False, False, False, False, False]
+        self.reached_goals = [False, False, False, False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False, False, False, False]
         self.goal_points = [(-0.4, 1),(-0.4, 1.9),(0.4, 1.9),(0.4, 1),(0,2.25),(-0.4, 1.4),(0.4,1.4)]
 
-=======
-        self.collision_range = 0.01
->>>>>>> discrete_action_space
+        self.collision_range = 0.05
 
         self.reset()
         self.seed()
@@ -168,9 +165,22 @@ class mindstormBotEnv(gym.Env):
 
     def step(self, action):
         movement = self.EOM(self.agent_pos, action)
+
+        collision = False   
         
-<<<<<<< HEAD
-        #checkpoints
+        self.agent_pos[0] += movement[0]
+        self.agent_pos[1] += movement[1]
+        self.agent_pos[2] += movement[2]
+        self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
+
+        self.agent_pos[3] = self.max_range
+        
+        agent_pos = np.clip(self.agent_pos, self.observation_space.low[0],
+                                        self.observation_space.high[0])
+        collision = False   
+        if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
+            collision = True
+                #checkpoints
         for i in range(len(self.goal_points)):
             if (np.abs(self.agent_pos[0]-self.goal_points[i][0]) < 0.4 and np.abs(self.agent_pos[1]-self.goal_points[i][1]) < 0.10):
                 if not self.goal_reached_in_episode[i]:
@@ -186,20 +196,6 @@ class mindstormBotEnv(gym.Env):
                 else:
                     self.reached_goals[i] = False
 
-
-=======
-        self.agent_pos[0] += movement[0]
-        self.agent_pos[1] += movement[1]
-        self.agent_pos[2] += movement[2]
-        self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
-
-        self.agent_pos[3] = self.max_range
-        
-        collision = False   
->>>>>>> discrete_action_space
-        if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
-            collision = True
-        
         ray = self.ray_caster()
         query_result = self.spatial_index.query(ray, predicate='intersects')
         if len(query_result) > 0:
@@ -211,14 +207,9 @@ class mindstormBotEnv(gym.Env):
         self.ray = LineString([ray.coords[0], (ray.coords[0][0] + self.agent_pos[3] * np.sin(self.agent_pos[2]),
                                                 ray.coords[0][1] + self.agent_pos[3] * np.cos(self.agent_pos[2]))])
 
-        self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
         observation = self.agent_pos
-<<<<<<< HEAD
 
         reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision, self.reached_goals)
-=======
-        reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision)
->>>>>>> discrete_action_space
         self.counter += 1
         self.Timesteps += 1
         truncated = False
@@ -226,7 +217,7 @@ class mindstormBotEnv(gym.Env):
             truncated = True
         info = {}
 
-        return observation, reward, terminated,truncated, info
+        return observation, reward, terminated, truncated, info
 
     def reset(self, seed=None, options=None):
 
