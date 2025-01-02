@@ -4,3 +4,6 @@
 /videos/
 /logs/
 /Gifs/
+__pycache__/
+*.pyc
+*.zip
