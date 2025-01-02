@@ -74,10 +74,14 @@ class mindstormBotEnv(gym.Env):
         #collision
         self.collision_range = 0.025
         #checkpoints
-        self.reached_goals = [False, False, False, False, False, False, False]
-        self.goal_reached_in_episode = [False, False, False, False, False, False, False]
-        self.goal_points = [(-0.4, 1),(-0.4, 1.9),(0.4, 1.9),(0.4, 1),(0,2.25),(-0.4, 1.4),(0.4,1.4)]
-
+        self.reached_goals = [False, False, False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False, False, False]
+        
+        self.vertical_reached_goals = [False]
+        self.vertical_goal_reached_in_episode = [False]
+        
+        self.goal_points = [(-0.4, 1),(-0.4, 1.9),(0.4, 1.9),(0.4, 1),(-0.4, 1.4),(0.4,1.4)]
+        self.vertical_goal_points = [(0,2.25)]
         self.collision_range = 0.05
 
         self.reset()
@@ -165,8 +169,6 @@ class mindstormBotEnv(gym.Env):
 
     def step(self, action):
         movement = self.EOM(self.agent_pos, action)
-
-        collision = False   
         
         self.agent_pos[0] += movement[0]
         self.agent_pos[1] += movement[1]
@@ -189,12 +191,13 @@ class mindstormBotEnv(gym.Env):
                 else:
                     self.reached_goals[i] = False
             #vertical goal:
-            elif (np.abs(self.agent_pos[0]-self.goal_points[4][0]) < 0.10 and np.abs(self.agent_pos[1]-self.goal_points[4][1]) < 0.25):
-                if not self.goal_reached_in_episode[i]:
-                    self.reached_goals[i] = True
-                    self.goal_reached_in_episode[i] = True
+        for i in range(len(self.vertical_goal_points)):
+            if (np.abs(self.agent_pos[0]-self.vertical_goal_points[i][0]) < 0.10 and np.abs(self.agent_pos[1]-self.vertical_goal_points[i][1]) < 0.25):
+                if not self.vertical_goal_reached_in_episode[i]:
+                    self.vertical_reached_goals[i] = True
+                    self.vertical_goal_reached_in_episode[i] = True
                 else:
-                    self.reached_goals[i] = False
+                    self.vertical_reached_goals[i] = False
 
         ray = self.ray_caster()
         query_result = self.spatial_index.query(ray, predicate='intersects')
@@ -209,7 +212,7 @@ class mindstormBotEnv(gym.Env):
 
         observation = self.agent_pos
 
-        reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision, self.reached_goals)
+        reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision, self.reached_goals, self.vertical_reached_goals)
         self.counter += 1
         self.Timesteps += 1
         truncated = False
@@ -245,8 +248,11 @@ class mindstormBotEnv(gym.Env):
         self.counter = 0
 
         #checkpoints
-        self.reached_goals = [False, False, False, False, False, False, False]
-        self.goal_reached_in_episode = [False, False, False, False, False, False, False]
+        self.reached_goals = [False, False, False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False, False, False]
+
+        self.vertical_reached_goals = [False]
+        self.vertical_goal_reached_in_episode = [False]
 
         info = {}
 
