@@ -72,12 +72,16 @@ class mindstormBotEnv(gym.Env):
         #rendering
         self.ray = LineString([(0,0),(0,0)])
         #collision
+<<<<<<< HEAD
         self.collision_range = 0.025
         #checkpoints
         self.reached_goals = [False, False, False, False, False, False]
         self.goal_reached_in_episode = [False, False, False, False, False, False]
         self.goal_points = [(-0.4, 1),(-0.4, 1.9),(0.4, 1.9),(0.4, 1),(0,2.25),(-0.4, 1.4),(0.4,1.4)]
 
+=======
+        self.collision_range = 0.01
+>>>>>>> discrete_action_space
 
         self.reset()
         self.seed()
@@ -163,8 +167,8 @@ class mindstormBotEnv(gym.Env):
         return self.max_range
 
     def step(self, action):
-        self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
         movement = self.EOM(self.agent_pos, action)
+<<<<<<< HEAD
 
         collision = False   
         
@@ -185,10 +189,22 @@ class mindstormBotEnv(gym.Env):
                     self.reached_goals[i] = False
 
 
+=======
+        
+        self.agent_pos[0] += movement[0]
+        self.agent_pos[1] += movement[1]
+        self.agent_pos[2] += movement[2]
+        self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
+
+        self.agent_pos[3] = self.max_range
+        
+        collision = False   
+>>>>>>> discrete_action_space
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
         
         ray = self.ray_caster()
+<<<<<<< HEAD
 
         self.agent_pos[0] += movement[0]
         self.agent_pos[1] += movement[1]
@@ -196,6 +212,8 @@ class mindstormBotEnv(gym.Env):
         self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
 
         self.agent_pos[3] = self.max_range
+=======
+>>>>>>> discrete_action_space
         query_result = self.spatial_index.query(ray, predicate='intersects')
         if len(query_result) > 0:
             for i in query_result:
@@ -206,10 +224,16 @@ class mindstormBotEnv(gym.Env):
         self.ray = LineString([ray.coords[0], (ray.coords[0][0] + self.agent_pos[3] * np.sin(self.agent_pos[2]),
                                                 ray.coords[0][1] + self.agent_pos[3] * np.cos(self.agent_pos[2]))])
 
+<<<<<<< HEAD
 
         observation = self.agent_pos
 
         reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision, self.reached_goals)
+=======
+        self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
+        observation = self.agent_pos
+        reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision)
+>>>>>>> discrete_action_space
         self.counter += 1
         self.Timesteps += 1
         truncated = False
