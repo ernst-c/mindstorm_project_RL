@@ -55,10 +55,13 @@ class mindstormBotEnv(gym.Env):
         self.action_space = spaces.Discrete(3)
 
         self.observation_space = spaces.Box(
-            low=np.array([-0.8, 0, -pi, 0]), 
-            high=np.array([0.8, 2.5, pi, 1]), 
+            low=0, 
+            high=1, 
+            shape = (1,),
             dtype=float
         )
+        self.field_bounds_low = np.array([-0.8, 0], dtype=float)
+        self.field_bounds_high = np.array([0.8, 2.5], dtype=float)
 
         self.reward_range = (-float("inf"), float("inf"))
         self.goal_range = 0.15
@@ -72,7 +75,7 @@ class mindstormBotEnv(gym.Env):
         #rendering
         self.ray = LineString([(0,0),(0,0)])
         #collision
-        self.collision_range = 0.01
+        self.collision_range = 0.05
 
         self.reset()
         self.seed()
@@ -181,9 +184,8 @@ class mindstormBotEnv(gym.Env):
         self.ray = LineString([ray.coords[0], (ray.coords[0][0] + self.agent_pos[3] * np.sin(self.agent_pos[2]),
                                                 ray.coords[0][1] + self.agent_pos[3] * np.cos(self.agent_pos[2]))])
 
-        self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
-        observation = self.agent_pos
-        reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision)
+        observation = np.array([self.agent_pos[3]])        
+        reward, terminated = self.rewardfunc(self.agent_pos, self.goal_state, self.goal_range, collision)
         self.counter += 1
         self.Timesteps += 1
         truncated = False
@@ -212,15 +214,15 @@ class mindstormBotEnv(gym.Env):
                             dtype=float)
 
         # Clip position to be in the bounds of the field
-        self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0],
-                                        self.observation_space.high[0])
-        self.agent_pos[1] = np.clip(self.agent_pos[1], self.observation_space.low[1],
-                                        self.observation_space.high[1])
+        self.agent_pos[0] = np.clip(self.agent_pos[0], self.field_bounds_low[0],
+                                        self.field_bounds_high[0])
+        self.agent_pos[1] = np.clip(self.agent_pos[1], self.field_bounds_low[1],
+                                        self.field_bounds_high[1])
         self.counter = 0
 
         info = {}
 
-        return self.agent_pos, info
+        return np.array([self.agent_pos[3]]), info
 
     def render(self):
         if self.render_mode == "rgb_array":
