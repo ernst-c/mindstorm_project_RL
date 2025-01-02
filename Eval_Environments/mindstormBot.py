@@ -75,7 +75,7 @@ class mindstormBotEnv(gym.Env):
         #rendering
         self.ray = LineString([(0,0),(0,0)])
         #collision
-        self.collision_range = 0.025
+        self.collision_range = 0.075
         #checkpoints
         self.reached_goals = [False, False, False, False, False, False]
         self.goal_reached_in_episode = [False, False, False, False, False, False]
@@ -85,7 +85,6 @@ class mindstormBotEnv(gym.Env):
         
         self.goal_points = [(-0.4, 1),(-0.4, 1.9),(0.4, 1.9),(0.4, 1),(-0.4, 1.4),(0.4,1.4)]
         self.vertical_goal_points = [(0,2.25)]
-        self.collision_range = 0.05
 
         self.reset()
         self.seed()

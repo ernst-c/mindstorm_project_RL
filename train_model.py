@@ -46,7 +46,7 @@ if __name__ == '__main__':
     env.close()
 
     #create video
-    video_folder = "/Desktop/workspaces/mindstorm_project_RL"
+    video_folder = "/Desktop/workspaces/mindstorm_project_RL/videos/"
     video_length = 600
     env = make_vec_env(eval_environment, n_envs=16, vec_env_cls=SubprocVecEnv)
     env = VecVideoRecorder(env, video_folder,
