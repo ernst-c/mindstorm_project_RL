@@ -72,11 +72,11 @@ class mindstormBotEnv(gym.Env):
         #rendering
         self.ray = LineString([(0,0),(0,0)])
         #collision
-        self.collision_range = 0.1
+        self.collision_range = 0.025
         #checkpoints
-        self.reached_goals = [False, False, False, False]
-        self.goal_reached_in_episode = [False, False, False, False]
-        self.goal_points = [(-0.4, 1),(-0.4, 1.75),(0.4, 1.75),(0.4, 1)]
+        self.reached_goals = [False, False, False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False, False, False]
+        self.goal_points = [(-0.4, 1),(-0.4, 1.9),(0.4, 1.9),(0.4, 1),(0,2.25),(-0.4, 1.4),(0.4,1.4)]
 
 
         self.reset()
@@ -108,11 +108,12 @@ class mindstormBotEnv(gym.Env):
     def create_large_map(self):
         self.goal_state = np.array([-0.4, 0.35, 0, 0, 0], dtype=float) 
         polygons = [0,0,0,0,0,0,0]
-        ###add border walls of field to polygons at x=-1 and x=1 and vertically to from y=0 to y=2.5
+        #border walls
         polygons.append(LineString([(-0.8,0),(-0.8,2.5)]))
         polygons.append(LineString([(0.8,0),(0.8,2.5)]))
         polygons.append(LineString([(-0.8,0),(0.8,0)]))
         polygons.append(LineString([(-0.8,2.5),(0.8,2.5)]))
+        #inner walls
         polygons[0] = (LineString([(-0.8,0.6),(0,0.6)]))
         polygons[1] = self.get_wall_line((r.choice([-0.8,-0.4]),1.2))   
         polygons[2] = self.get_wall_line((r.choice([-0.8,-0.4]),1.8))
@@ -170,7 +171,14 @@ class mindstormBotEnv(gym.Env):
         
         #checkpoints
         for i in range(len(self.goal_points)):
-            if (np.abs(self.agent_pos[0]-self.goal_points[i][0]) < 0.4 and np.abs(self.agent_pos[1]-self.goal_points[i][1]) < 0.15):
+            if (np.abs(self.agent_pos[0]-self.goal_points[i][0]) < 0.4 and np.abs(self.agent_pos[1]-self.goal_points[i][1]) < 0.10):
+                if not self.goal_reached_in_episode[i]:
+                    self.reached_goals[i] = True
+                    self.goal_reached_in_episode[i] = True
+                else:
+                    self.reached_goals[i] = False
+            #vertical goal:
+            elif (np.abs(self.agent_pos[0]-self.goal_points[4][0]) < 0.10 and np.abs(self.agent_pos[1]-self.goal_points[4][1]) < 0.25):
                 if not self.goal_reached_in_episode[i]:
                     self.reached_goals[i] = True
                     self.goal_reached_in_episode[i] = True
@@ -235,8 +243,8 @@ class mindstormBotEnv(gym.Env):
         self.counter = 0
 
         #checkpoints
-        self.reached_goals = [False, False, False, False]
-        self.goal_reached_in_episode = [False, False, False, False]
+        self.reached_goals = [False, False, False, False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False, False, False, False]
 
         info = {}
 
