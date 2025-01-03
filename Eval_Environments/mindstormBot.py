@@ -49,14 +49,9 @@ class mindstormBotEnv(gym.Env):
 
         # Define the wall's length
         self.wall_length = 0.4
-
-        # Define the wall's thickness (0.2 in this case)
-        self.horizontal_spawn_radius = 0.8
-        self.vertical_spawn_radius = 2.5
                         
         # Used for simulations
-        self.episode_counter = 0
-        self.spawn_increment = 1/750
+        self.episode_counter = 1400
         self.action_space = spaces.Discrete(3)
 
         self.observation_space = spaces.Box(
@@ -77,7 +72,7 @@ class mindstormBotEnv(gym.Env):
         #rendering
         self.ray = LineString([(0,0),(0,0)])
         #collision
-        self.collision_range = 0.1
+        self.collision_range = 0.05
 
         self.reset()
         self.seed()
@@ -162,15 +157,19 @@ class mindstormBotEnv(gym.Env):
         return self.max_range
 
     def step(self, action):
-        self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
         movement = self.EOM(self.agent_pos, action)
-        ray = self.ray_caster()
+        self.agent_pos[0] += movement[0]
+        self.agent_pos[1] += movement[1]
+        self.agent_pos[2] += movement[2]
+        self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
+
+        self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
 
         collision = False   
-        
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
         
+        ray = self.ray_caster()
         self.agent_pos[3] = self.max_range
         query_result = self.spatial_index.query(ray, predicate='intersects')
         if len(query_result) > 0:
@@ -181,11 +180,6 @@ class mindstormBotEnv(gym.Env):
                     self.agent_pos[3] = closest_intersection
         self.ray = LineString([ray.coords[0], (ray.coords[0][0] + self.agent_pos[3] * np.sin(self.agent_pos[2]),
                                                 ray.coords[0][1] + self.agent_pos[3] * np.cos(self.agent_pos[2]))])
-
-        self.agent_pos[0] += movement[0]
-        self.agent_pos[1] += movement[1]
-        self.agent_pos[2] += movement[2]
-        self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
 
         observation = self.agent_pos
 
@@ -206,16 +200,45 @@ class mindstormBotEnv(gym.Env):
         self.polygons = self.create_large_map()
         self.spatial_index = STRtree(self.polygons)
 
-        self.agent_pos = np.array([r.uniform(-0.3,-0.5),
-                            r.uniform(0.7,0.9),
-                            0, self.max_range],
-                            dtype=float)
+        #curriculum learning:
+        #check for collision with walls
+            #first zone: spawn radius from top left corner to top right corner. 
+        while True:
+            if self.episode_counter < 600:
+                factor = self.episode_counter/600
+                self.agent_pos = np.array([r.uniform(self.goal_state[0], factor*0.8),
+                                r.uniform(self.goal_state[1]-factor*0.25, factor*0.25),
+                                0, self.max_range],
+                                dtype=float)
+            #second zone: spawn radius from top right corner to bottom right corner.
+            elif self.episode_counter < 1000:
+                factor = (self.episode_counter - 600) / 400  # Proper scaling factor for 600-1000
+                self.agent_pos = np.array([
+                    r.uniform(0, 0.8),
+                    r.uniform(0.20, 0.25 + factor * (2.25 - 0.25)),  # Incremental y-coordinate
+                    0,
+                    self.max_range
+                ], dtype=float)
+            #third zone: spawn radius from bottom right corner to bottom left corner.
+            elif self.episode_counter < 1400:
+                factor = (self.episode_counter - 1000) / 400  # Proper scaling factor for 1000–1400
+                self.agent_pos = np.array([
+                    r.uniform(0.7 - factor * (0.7 + 0.8), 0.8), 
+                    r.uniform(2.0, 2.5),  # Fixed y-range
+                    0,
+                    self.max_range
+                ], dtype=float)
+            #fourth zone: spawn radius from starting zone to bottom left corner. 
+            else:
+                self.agent_pos = np.array([r.uniform(-0.8,0),
+                                r.uniform(1.2,2.25),
+                                0, self.max_range],
+                                dtype=float)
 
-        while(self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
-            self.agent_pos = np.array([r.uniform(-0.3,-0.5),
-                            r.uniform(0.7,0.9),
-                            0, self.max_range],
-                            dtype=float)
+            if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
+                continue
+            else:
+                break
 
         # Clip position to be in the bounds of the field
         self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0],
