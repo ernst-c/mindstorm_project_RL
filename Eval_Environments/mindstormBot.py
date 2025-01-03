@@ -27,7 +27,7 @@ class mindstormBotEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
     def __init__(self, t_s=1/20, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
-                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=discrete_model, render_mode=None):
+                 episode_steps=400, rewardfunc=sparse_reward2d, eom=discrete_model, render_mode=None):
 
         #rendering
         assert render_mode is None or render_mode in self.metadata["render_modes"]
