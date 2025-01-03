@@ -205,15 +205,15 @@ class mindstormBotEnv(gym.Env):
         #curriculum learning:
         while True:
             #first zone: spawn radius from top left corner to top right corner. 
-            if self.episode_counter < 1800:
-                factor = self.episode_counter/1800
+            if self.episode_counter < 600:
+                factor = self.episode_counter/600
                 self.agent_pos = np.array([r.uniform(self.goal_state[0], factor*0.8),
                                 r.uniform(self.goal_state[1]-factor*0.25, factor*0.25),
                                 0, self.max_range],
                                 dtype=float)
             #second zone: spawn radius from top right corner to bottom right corner.
-            elif self.episode_counter < 3600:
-                factor = (self.episode_counter - 1800) / 1800  # Proper scaling factor for 600-1000
+            elif self.episode_counter < 1200:
+                factor = (self.episode_counter - 600) / 600  # Proper scaling factor for 600-1000
                 self.agent_pos = np.array([
                     r.uniform(0, 0.8),
                     r.uniform(0.20, 0.25 + factor * (2.25 - 0.25)),  # Incremental y-coordinate
@@ -221,8 +221,8 @@ class mindstormBotEnv(gym.Env):
                     self.max_range
                 ], dtype=float)
             #third zone: spawn radius from bottom right corner to bottom left corner.
-            elif self.episode_counter < 4200:
-                factor = (self.episode_counter - 3600) / 1800  # Proper scaling factor for 1000–1400
+            elif self.episode_counter < 1800:
+                factor = (self.episode_counter - 1200) / 600  # Proper scaling factor for 1000–1400
                 self.agent_pos = np.array([
                     r.uniform(0.7 - factor * (0.7 + 0.8), 0.8), 
                     r.uniform(2.0, 2.5),  # Fixed y-range
