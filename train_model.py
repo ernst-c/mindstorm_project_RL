@@ -24,14 +24,14 @@ if __name__ == '__main__':
 
     environment = 'mindstormBot-v0'
     eval_environment = 'mindstormBotEval-v0'
-    training_timesteps = 100000
+    training_timesteps = 150000
     
     n_envs = 16 
     env = make_vec_env(environment, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
     
     #create log dir
     log_dir = "/Desktop/workspaces/mindstorm_project_RL/logs/"
-    algorithm_folder = "PPO_0"
+    algorithm_folder = "RecurrentPPO_0"
     full_log_dir = os.path.join(log_dir, algorithm_folder)
     if os.path.isdir(full_log_dir):
         shutil.rmtree(full_log_dir)
@@ -39,10 +39,15 @@ if __name__ == '__main__':
     else:
         print(f"Folder not found: {full_log_dir}")
 
+
     #initialize and train model
     #model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, clip_range=0.3 ,seed=None, tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
     #model = DQN('MlpPolicy', env, verbose=1, gamma=0.99,seed=None, batch_size=128,exploration_fraction=0.4, tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
-    model = RecurrentPPO("MlpLstmPolicy", env, n_steps=512,batch_size=64, verbose=1,tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
+    policy_kwargs = dict(
+        net_arch=[],               # No additional dense layers after LSTM
+        lstm_hidden_size=4           # Use a small hidden size, e.g., 1 or 2
+    )
+    model = RecurrentPPO("MlpLstmPolicy", env,n_steps=32,policy_kwargs=policy_kwargs, verbose=1,tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
 
     obs = env.reset()
     model.learn(training_timesteps, reset_num_timesteps=False)
