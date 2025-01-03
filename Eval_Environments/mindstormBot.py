@@ -55,10 +55,13 @@ class mindstormBotEnv(gym.Env):
         self.action_space = spaces.Discrete(3)
 
         self.observation_space = spaces.Box(
-            low=np.array([-0.8, 0, -pi, 0]), 
-            high=np.array([0.8, 2.5, pi, 1]), 
+            low=0, 
+            high=1, 
+            shape = (1,),
             dtype=float
         )
+        self.field_bounds_low = np.array([-0.8, 0], dtype=float)
+        self.field_bounds_high = np.array([0.8, 2.5], dtype=float)
 
         self.reward_range = (-float("inf"), float("inf"))
         self.goal_range = 0.15
@@ -158,19 +161,19 @@ class mindstormBotEnv(gym.Env):
 
     def step(self, action):
         movement = self.EOM(self.agent_pos, action)
+        
         self.agent_pos[0] += movement[0]
         self.agent_pos[1] += movement[1]
         self.agent_pos[2] += movement[2]
         self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
 
-        self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
-
+        self.agent_pos[3] = self.max_range
+        
         collision = False   
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
         
         ray = self.ray_caster()
-        self.agent_pos[3] = self.max_range
         query_result = self.spatial_index.query(ray, predicate='intersects')
         if len(query_result) > 0:
             for i in query_result:
@@ -181,9 +184,8 @@ class mindstormBotEnv(gym.Env):
         self.ray = LineString([ray.coords[0], (ray.coords[0][0] + self.agent_pos[3] * np.sin(self.agent_pos[2]),
                                                 ray.coords[0][1] + self.agent_pos[3] * np.cos(self.agent_pos[2]))])
 
-        observation = self.agent_pos
-
-        reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision)
+        observation = np.array([self.agent_pos[3]])        
+        reward, terminated = self.rewardfunc(self.agent_pos, self.goal_state, self.goal_range, collision)
         self.counter += 1
         self.Timesteps += 1
         truncated = False
@@ -201,9 +203,8 @@ class mindstormBotEnv(gym.Env):
         self.spatial_index = STRtree(self.polygons)
 
         #curriculum learning:
-        #check for collision with walls
-            #first zone: spawn radius from top left corner to top right corner. 
         while True:
+            #first zone: spawn radius from top left corner to top right corner. 
             if self.episode_counter < 600:
                 factor = self.episode_counter/600
                 self.agent_pos = np.array([r.uniform(self.goal_state[0], factor*0.8),
@@ -234,22 +235,22 @@ class mindstormBotEnv(gym.Env):
                                 r.uniform(1.2,2.25),
                                 0, self.max_range],
                                 dtype=float)
-
+            #check for collision with walls
             if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
                 continue
             else:
                 break
 
         # Clip position to be in the bounds of the field
-        self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0],
-                                        self.observation_space.high[0])
-        self.agent_pos[1] = np.clip(self.agent_pos[1], self.observation_space.low[1],
-                                        self.observation_space.high[1])
+        self.agent_pos[0] = np.clip(self.agent_pos[0], self.field_bounds_low[0],
+                                        self.field_bounds_high[0])
+        self.agent_pos[1] = np.clip(self.agent_pos[1], self.field_bounds_low[1],
+                                        self.field_bounds_high[1])
         self.counter = 0
 
         info = {}
 
-        return self.agent_pos, info
+        return np.array([self.agent_pos[3]]), info
 
     def render(self):
         if self.render_mode == "rgb_array":
