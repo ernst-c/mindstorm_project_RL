@@ -7,6 +7,8 @@ from sbx import PPO
 from stable_baselines3 import DQN
 import os
 import shutil
+from sb3_contrib import RecurrentPPO
+import numpy as np
 
 device = torch.device('cuda')
 register(
@@ -22,7 +24,7 @@ if __name__ == '__main__':
 
     environment = 'mindstormBot-v0'
     eval_environment = 'mindstormBotEval-v0'
-    training_timesteps = 4000000    
+    training_timesteps = 150000
     
     n_envs = 16 
     env = make_vec_env(environment, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
@@ -38,12 +40,17 @@ if __name__ == '__main__':
         print(f"Folder not found: {full_log_dir}")
 
     #initialize and train model
-    model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, clip_range=0.3 ,seed=None, tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
+    #model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, clip_range=0.3 ,seed=None, tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
     #model = DQN('MlpPolicy', env, verbose=1, gamma=0.99,seed=None, batch_size=128,exploration_fraction=0.4, tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
+    policy_kwargs = dict(lstm_hidden_size=8)  # Default is typically 256
+
+    model = RecurrentPPO("MlpLstmPolicy", env,policy_kwargs=policy_kwargs, verbose=1,tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
 
     obs = env.reset()
     model.learn(training_timesteps, reset_num_timesteps=False)
     env.close()
+    lstm_states = None
+    episode_starts = np.ones((n_envs,), dtype=bool)
 
     #create video
     video_folder = "/Desktop/workspaces/mindstorm_project_RL"
@@ -54,8 +61,10 @@ if __name__ == '__main__':
                            name_prefix=f"random-agent")
     env.reset()
     for _ in range(video_length):
-        actions = model.predict(obs)[0]
-        obs, rewards, dones, info = env.step(actions)
+        action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
+        obs, rewards, dones, info = env.step(action)
+        episode_starts = dones
+
     env.close()
 
 
