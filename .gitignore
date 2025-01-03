@@ -2,3 +2,8 @@
 *.mp4
 /rl-baselines3-zoo/
 /videos/
+/logs/
+/Gifs/
+__pycache__/
+*.pyc
+*.zip
