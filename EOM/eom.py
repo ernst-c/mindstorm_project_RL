@@ -3,18 +3,25 @@ import numpy as np
 from math import cos, sin, pi, sqrt
 
 @jit
-def discrete_model(x,u):
-    alpha = x[2]
-    alpha_dot = 0
-    x_dot = 0
-    y_dot = 0
-    if u == 0:
-        x_dot = sin(alpha)*0.1
-        y_dot = cos(alpha)*0.1
-    elif u == 1:
-        alpha_dot = pi/2
-    elif u == 2:
-        alpha_dot = -pi/2
+def cont_model(x,wheel_velocities,u,param):
+    #param = [wheel_base, wheel_radius, T_s]
+    x_pos, y_pos, alpha, max_range = x
+    wheel_vel_l, wheel_vel_r = wheel_velocities
+    #scale u to motor input range
+    scaled_u = u*100
+    # Motor inputs (PWM commands for left and right motors)
+    l_omega, r_omega = ((scaled_u*12 - np.array([wheel_vel_l,wheel_vel_l]))/0.25)*param[2] # degrees/second 
+    
+    v_l = (l_omega+wheel_vel_l) * param[1] * 1/180*pi  # m/s 
+    v_r = (r_omega+wheel_vel_r) * param[1] * 1/180*pi  # m/s 
 
-    dx = [x_dot, y_dot, alpha_dot, 0]
+    v = (v_l + v_r) / 2  # Linear velocity
+    omega = (v_l - v_r) / param[0]  # Angular velocity
+
+    x_dot = v * np.sin(alpha) * param[2]
+    y_dot = v * np.cos(alpha) * param[2]
+    alpha_dot = omega * param[2]
+    
+    dx = [x_dot, y_dot, alpha_dot, 0, wheel_vel_l, wheel_vel_r]
+
     return dx

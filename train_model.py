@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
 
     # Save the final trained model
-    run_name = "dec20_0946"+"_"+str(training_timesteps)
+    run_name = "jan10"+"_"+str(training_timesteps)
     save_dir = "/Desktop/workspaces/mindstorm_project_RL/saved_models/"
     full_log_dir = os.path.join(save_dir, run_name)
     if not os.path.isdir(full_log_dir):
