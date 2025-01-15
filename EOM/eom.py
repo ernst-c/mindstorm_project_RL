@@ -10,7 +10,7 @@ def cont_model(x,wheel_velocities,u,param):
     #scale u to motor input range
     scaled_u = u*100
     # Motor inputs (PWM commands for left and right motors)
-    l_domega, r_domega = ((scaled_u*12 - np.array([wheel_vel_l,wheel_vel_l]))/0.25)*param[2] # degrees/second 
+    l_domega, r_domega = ((scaled_u*12 - np.array([wheel_vel_l,wheel_vel_r]))/0.25)*param[2] # degrees/second 
     
     v_l = (l_domega+wheel_vel_l) * param[1] * 1/180*pi  # m/s 
     v_r = (r_domega+wheel_vel_r) * param[1] * 1/180*pi  # m/s 
