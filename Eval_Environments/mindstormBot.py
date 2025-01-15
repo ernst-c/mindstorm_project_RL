@@ -66,16 +66,16 @@ class mindstormBotEnv(gym.Env):
         #rendering
         self.ray = LineString([(0,0),(0,0)])
         #collision
-        self.collision_range = 0.025
+        self.collision_range = 0.05
         #checkpoints
         self.reached_goals = [False, False, False, False, False, False]
         self.goal_reached_in_episode = [False, False, False, False, False, False]
         
-        self.vertical_reached_goals = [False]
-        self.vertical_goal_reached_in_episode = [False]
+        self.vertical_reached_goals = [False, False]
+        self.vertical_goal_reached_in_episode = [False, False]
         
         self.goal_points = [(-0.4, 1),(-0.4, 1.9),(0.4, 1.9),(0.4, 1),(-0.4, 1.4),(0.4,1.4)]
-        self.vertical_goal_points = [(0,2.25)]
+        self.vertical_goal_points = [(0,2.25), (0,0.25)]
 
         self.reset()
         self.seed()
@@ -210,7 +210,7 @@ class mindstormBotEnv(gym.Env):
         info = {}
 
         return observation, reward, terminated, truncated, info
-    
+
     def reset(self, seed=None, options=None):
 
         self.episode_counter += 1
@@ -241,8 +241,8 @@ class mindstormBotEnv(gym.Env):
         self.reached_goals = [False, False, False, False, False, False]
         self.goal_reached_in_episode = [False, False, False, False, False, False]
 
-        self.vertical_reached_goals = [False]
-        self.vertical_goal_reached_in_episode = [False]
+        self.vertical_reached_goals = [False, False]
+        self.vertical_goal_reached_in_episode = [False, False]
 
         info = {}
 
