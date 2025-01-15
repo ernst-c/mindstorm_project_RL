@@ -1,14 +1,5 @@
-"""
-todo:
-- check if improved dynamic model with linear velocity actually works
-- check if gamma should be changed
-- check if subprocenv actually matters
-- check if the reward function is correct, maybe distance based is better
-
-"""
-
-
 from EOM.eom import *
+from EOM.RK4 import *
 import random as r
 import numpy as np
 import gymnasium as gym
@@ -27,7 +18,7 @@ class mindstormBotEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
     def __init__(self, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
-                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=cont_model, render_mode=None, param=[0.3,0.1,0.05]):
+                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=cont_model, render_mode=None, param=np.array([0.3,0.1,0.05])):
 
         #rendering
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -36,7 +27,7 @@ class mindstormBotEnv(gym.Env):
         self.clock = None
         self.window_width = 200
         self.window_height = 270
-
+        self.rk4 = runge_kutta4
         self.episode_steps = episode_steps
         self.rewardfunc = rewardfunc
         self.EOM = eom
@@ -54,16 +45,20 @@ class mindstormBotEnv(gym.Env):
         self.action_space = spaces.Box(low=np.array([-1, -1]),
                                        high=np.array([1, 1]), dtype=float)
         self.observation_space = spaces.Box(
-            low=np.array([-0.8, 0, -pi, 0]), 
-            high=np.array([0.8, 2.5, pi, 1]), 
+            low=0, 
+            high=1, 
+            shape = (1,),
             dtype=float
         )
-        self.wheel_velocities = [0, 0]
+        self.wheel_velocities = np.array([0, 0])
+        self.field_bounds_low = np.array([-0.8, 0], dtype=float)
+        self.field_bounds_high = np.array([0.8, 2.5], dtype=float)
+
         self.reward_range = (-float("inf"), float("inf"))
         self.goal_range = 0.15
 
         #reset function
-        self.agent_pos = [0,0,0,0,0,0] #x,y,theta,range,wheel_vel_l,wheel_vel_r
+        self.agent_pos = np.array([0,0,0,0,0,0]) #x,y,theta,range,wheel_vel_l,wheel_vel_r
         self.counter = 0
         # optimization
         self.polygons = self.create_large_map()
@@ -71,7 +66,7 @@ class mindstormBotEnv(gym.Env):
         #rendering
         self.ray = LineString([(0,0),(0,0)])
         #collision
-        self.collision_range = 0.01
+        self.collision_range = 0.05
 
         self.reset()
         self.seed()
@@ -156,16 +151,14 @@ class mindstormBotEnv(gym.Env):
         return self.max_range
 
     def step(self, action):
-        movement = self.EOM(self.agent_pos, self.wheel_velocities, action, self.param)
-        
+        movement, new_wheel_velocities = self.rk4(self.agent_pos, self.wheel_velocities, action, self.EOM, self.param)
         self.agent_pos[0] += movement[0]
         self.agent_pos[1] += movement[1]
         self.agent_pos[2] += movement[2]
         self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
 
         self.agent_pos[3] = self.max_range
-        self.wheel_velocities = [movement[4], movement[5]]
-
+        self.wheel_velocities += new_wheel_velocities.astype(float)
         collision = False   
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
@@ -181,9 +174,8 @@ class mindstormBotEnv(gym.Env):
         self.ray = LineString([ray.coords[0], (ray.coords[0][0] + self.agent_pos[3] * np.sin(self.agent_pos[2]),
                                                 ray.coords[0][1] + self.agent_pos[3] * np.cos(self.agent_pos[2]))])
 
-        self.agent_pos = np.clip(self.agent_pos, self.observation_space.low, self.observation_space.high)
-        observation = self.agent_pos
-        reward, terminated = self.rewardfunc(observation, self.goal_state, self.goal_range, collision)
+        observation = np.array([self.agent_pos[3]])        
+        reward, terminated = self.rewardfunc(self.agent_pos, self.goal_state, self.goal_range, collision)
         self.counter += 1
         self.Timesteps += 1
         truncated = False
@@ -211,17 +203,17 @@ class mindstormBotEnv(gym.Env):
                             0, self.max_range],
                             dtype=float)
 
-        self.wheel_velocities = [0, 0]
+        self.wheel_velocities = np.array([0, 0], dtype=float)
         # Clip position to be in the bounds of the field
-        self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0],
-                                        self.observation_space.high[0])
-        self.agent_pos[1] = np.clip(self.agent_pos[1], self.observation_space.low[1],
-                                        self.observation_space.high[1])
+        self.agent_pos[0] = np.clip(self.agent_pos[0], self.field_bounds_low[0],
+                                        self.field_bounds_high[0])
+        self.agent_pos[1] = np.clip(self.agent_pos[1], self.field_bounds_low[1],
+                                        self.field_bounds_high[1])
         self.counter = 0
 
         info = {}
 
-        return self.agent_pos, info
+        return np.array([self.agent_pos[3]]), info
 
     def render(self):
         if self.render_mode == "rgb_array":
