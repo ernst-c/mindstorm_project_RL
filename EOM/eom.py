@@ -22,6 +22,6 @@ def cont_model(x,wheel_velocities,u,param):
     y_dot = v * np.cos(alpha) * param[2]
     alpha_dot = omega * param[2]
     
-    dx = [x_dot, y_dot, alpha_dot, 0, l_domega, r_domega]
+    dx = np.array([x_dot, y_dot, alpha_dot, 0, l_domega, r_domega])
 
     return dx
