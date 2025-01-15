@@ -2,8 +2,14 @@ This repository contains a custom gymnasium environment which can be used to tra
 
 branches:
 - discrete_action_space --> contains basis code for training with a discrete action space
-- curriculum_learning_disc_actions
+- curriculum_learning_disc_actions --> unfinished curriculum learning approach
+- recurrent_ppo --> uses recurrent ppo policy, same as discrete_action_space
 - checkpoints_rewardfunc_disc_actions --> reward function has positive reward for reaching certain checkpoints en route to goal. 
+- checkpoints_recurrent_ppo --> uses recurrent ppo policy, same as checkpoints_rewardfunc_disc_actions
+
+- lrf_obs_disc --> observation space only contains laser range finder information, branched from discrete action space
+- lrf_obs_disc_checkpoints --> observation space only contains laser range finder information, branched from checkpoints_rewardfunc_disc_actions
+
 - continuous_action_space --> deprecated branch, action space consists of left and right wheel rotational velocity
 - google_collab --> deprecated
 - normalized_observation_space --> deprecated

@@ -18,7 +18,7 @@ class mindstormBotEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
     def __init__(self, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
-                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=cont_model, render_mode=None, param=np.array([0.3,0.1,0.05])):
+                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=cont_model, render_mode=None, param=np.array([0.3,0.2,0.125])):
 
         #rendering
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -66,7 +66,16 @@ class mindstormBotEnv(gym.Env):
         #rendering
         self.ray = LineString([(0,0),(0,0)])
         #collision
-        self.collision_range = 0.05
+        self.collision_range = 0.025
+        #checkpoints
+        self.reached_goals = [False, False, False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False, False, False]
+        
+        self.vertical_reached_goals = [False]
+        self.vertical_goal_reached_in_episode = [False]
+        
+        self.goal_points = [(-0.4, 1),(-0.4, 1.9),(0.4, 1.9),(0.4, 1),(-0.4, 1.4),(0.4,1.4)]
+        self.vertical_goal_points = [(0,2.25)]
 
         self.reset()
         self.seed()
@@ -97,11 +106,12 @@ class mindstormBotEnv(gym.Env):
     def create_large_map(self):
         self.goal_state = np.array([-0.4, 0.35, 0, 0, 0], dtype=float) 
         polygons = [0,0,0,0,0,0,0]
-        ###add border walls of field to polygons at x=-1 and x=1 and vertically to from y=0 to y=2.5
+        #border walls
         polygons.append(LineString([(-0.8,0),(-0.8,2.5)]))
         polygons.append(LineString([(0.8,0),(0.8,2.5)]))
         polygons.append(LineString([(-0.8,0),(0.8,0)]))
         polygons.append(LineString([(-0.8,2.5),(0.8,2.5)]))
+        #inner walls
         polygons[0] = (LineString([(-0.8,0.6),(0,0.6)]))
         polygons[1] = self.get_wall_line((r.choice([-0.8,-0.4]),1.2))   
         polygons[2] = self.get_wall_line((r.choice([-0.8,-0.4]),1.8))
@@ -162,7 +172,23 @@ class mindstormBotEnv(gym.Env):
         collision = False   
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
-        
+                #checkpoints
+        for i in range(len(self.goal_points)):
+            if (np.abs(self.agent_pos[0]-self.goal_points[i][0]) < 0.4 and np.abs(self.agent_pos[1]-self.goal_points[i][1]) < 0.10):
+                if not self.goal_reached_in_episode[i]:
+                    self.reached_goals[i] = True
+                    self.goal_reached_in_episode[i] = True
+                else:
+                    self.reached_goals[i] = False
+            #vertical goal:
+        for i in range(len(self.vertical_goal_points)):
+            if (np.abs(self.agent_pos[0]-self.vertical_goal_points[i][0]) < 0.10 and np.abs(self.agent_pos[1]-self.vertical_goal_points[i][1]) < 0.25):
+                if not self.vertical_goal_reached_in_episode[i]:
+                    self.vertical_reached_goals[i] = True
+                    self.vertical_goal_reached_in_episode[i] = True
+                else:
+                    self.vertical_reached_goals[i] = False
+
         ray = self.ray_caster()
         query_result = self.spatial_index.query(ray, predicate='intersects')
         if len(query_result) > 0:
@@ -175,7 +201,7 @@ class mindstormBotEnv(gym.Env):
                                                 ray.coords[0][1] + self.agent_pos[3] * np.cos(self.agent_pos[2]))])
 
         observation = np.array([self.agent_pos[3]])        
-        reward, terminated = self.rewardfunc(self.agent_pos, self.goal_state, self.goal_range, collision)
+        reward, terminated = self.rewardfunc(self.agent_pos, self.goal_state, self.goal_range, collision, self.reached_goals, self.vertical_reached_goals)
         self.counter += 1
         self.Timesteps += 1
         truncated = False
@@ -183,7 +209,7 @@ class mindstormBotEnv(gym.Env):
             truncated = True
         info = {}
 
-        return observation, reward, terminated,truncated, info
+        return observation, reward, terminated, truncated, info
 
     def reset(self, seed=None, options=None):
 
@@ -210,6 +236,13 @@ class mindstormBotEnv(gym.Env):
         self.agent_pos[1] = np.clip(self.agent_pos[1], self.field_bounds_low[1],
                                         self.field_bounds_high[1])
         self.counter = 0
+
+        #checkpoints
+        self.reached_goals = [False, False, False, False, False, False]
+        self.goal_reached_in_episode = [False, False, False, False, False, False]
+
+        self.vertical_reached_goals = [False]
+        self.vertical_goal_reached_in_episode = [False]
 
         info = {}
 

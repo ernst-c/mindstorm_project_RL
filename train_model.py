@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     environment = 'mindstormBot-v0'
     eval_environment = 'mindstormBotEval-v0'
-    training_timesteps = 3000000
+    training_timesteps = 1500000
     
     n_envs = 16 
     env = make_vec_env(environment, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     env.close()
 
     #create video
-    video_folder = "/Desktop/workspaces/mindstorm_project_RL"
+    video_folder = "/Desktop/workspaces/mindstorm_project_RL/videos/"
     video_length = 600
     env = make_vec_env(eval_environment, n_envs=16, vec_env_cls=SubprocVecEnv)
     env = VecVideoRecorder(env, video_folder,
