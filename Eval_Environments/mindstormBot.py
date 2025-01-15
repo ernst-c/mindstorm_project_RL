@@ -210,7 +210,7 @@ class mindstormBotEnv(gym.Env):
         info = {}
 
         return observation, reward, terminated, truncated, info
-
+    
     def reset(self, seed=None, options=None):
 
         self.episode_counter += 1
