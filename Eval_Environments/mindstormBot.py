@@ -68,8 +68,6 @@ class mindstormBotEnv(gym.Env):
         self.spatial_index = STRtree(self.polygons)
         #rendering
         self.ray = LineString([(0,0),(0,0)])
-        #collision
-        self.collision_range = 0.025
         #checkpoints
         self.reached_goals = [False, False, False, False, False, False]
         self.goal_reached_in_episode = [False, False, False, False, False, False]
@@ -184,6 +182,8 @@ class mindstormBotEnv(gym.Env):
                     self.goal_reached_in_episode[i] = True
                 else:
                     self.reached_goals[i] = False
+            else:
+                self.reached_goals[i] = False
             #vertical goal:
         for i in range(len(self.vertical_goal_points)):
             if (np.abs(self.agent_pos[0]-self.vertical_goal_points[i][0]) < 0.10 and np.abs(self.agent_pos[1]-self.vertical_goal_points[i][1]) < 0.25):
@@ -192,6 +192,8 @@ class mindstormBotEnv(gym.Env):
                     self.vertical_goal_reached_in_episode[i] = True
                 else:
                     self.vertical_reached_goals[i] = False
+            else:
+                self.vertical_reached_goals[i] = False
 
         ray = self.ray_caster()
         query_result = self.spatial_index.query(ray, predicate='intersects')
