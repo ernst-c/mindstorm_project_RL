@@ -1,14 +1,5 @@
-"""
-todo:
-- check if improved dynamic model with linear velocity actually works
-- check if gamma should be changed
-- check if subprocenv actually matters
-- check if the reward function is correct, maybe distance based is better
-
-"""
-
-
 from EOM.eom import *
+from EOM.RK4 import *
 import random as r
 import numpy as np
 import gymnasium as gym
@@ -27,7 +18,7 @@ class mindstormBotEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
     def __init__(self, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
-                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=cont_model, render_mode=None, param=[0.3,0.1,0.05]):
+                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=cont_model, render_mode=None, param=np.array([0.3,0.1,0.05])):
 
         #rendering
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -36,7 +27,7 @@ class mindstormBotEnv(gym.Env):
         self.clock = None
         self.window_width = 200
         self.window_height = 270
-
+        self.rk4 = runge_kutta4
         self.episode_steps = episode_steps
         self.rewardfunc = rewardfunc
         self.EOM = eom
@@ -58,12 +49,12 @@ class mindstormBotEnv(gym.Env):
             high=np.array([0.8, 2.5, pi, 1]), 
             dtype=float
         )
-        self.wheel_velocities = [0, 0]
+        self.wheel_velocities = np.array([0, 0])
         self.reward_range = (-float("inf"), float("inf"))
         self.goal_range = 0.15
 
         #reset function
-        self.agent_pos = [0,0,0,0,0,0] #x,y,theta,range,wheel_vel_l,wheel_vel_r
+        self.agent_pos = np.array([0,0,0,0,0,0]) #x,y,theta,range,wheel_vel_l,wheel_vel_r
         self.counter = 0
         # optimization
         self.polygons = self.create_large_map()
@@ -156,16 +147,14 @@ class mindstormBotEnv(gym.Env):
         return self.max_range
 
     def step(self, action):
-        movement = self.EOM(self.agent_pos, self.wheel_velocities, action, self.param)
-        
+        movement, new_wheel_velocities = self.rk4(self.agent_pos, self.wheel_velocities, action, self.EOM, self.param)
         self.agent_pos[0] += movement[0]
         self.agent_pos[1] += movement[1]
         self.agent_pos[2] += movement[2]
         self.agent_pos[2] = (self.agent_pos[2] + np.pi) % (2 * np.pi) - np.pi
 
         self.agent_pos[3] = self.max_range
-        self.wheel_velocities = [movement[4], movement[5]]
-
+        self.wheel_velocities += new_wheel_velocities.astype(float)
         collision = False   
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
@@ -211,7 +200,7 @@ class mindstormBotEnv(gym.Env):
                             0, self.max_range],
                             dtype=float)
 
-        self.wheel_velocities = [0, 0]
+        self.wheel_velocities = np.array([0, 0], dtype=float)
         # Clip position to be in the bounds of the field
         self.agent_pos[0] = np.clip(self.agent_pos[0], self.observation_space.low[0],
                                         self.observation_space.high[0])

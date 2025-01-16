@@ -147,8 +147,6 @@ class mindstormBotEnv(gym.Env):
         return self.max_range
 
     def step(self, action):
-        #movement = self.EOM(self.agent_pos, self.wheel_velocities, action, self.param)
-        print(f"Actions: {action}, Initial agent pos: {self.agent_pos}")
         movement, new_wheel_velocities = self.rk4(self.agent_pos, self.wheel_velocities, action, self.EOM, self.param)
         self.agent_pos[0] += movement[0]
         self.agent_pos[1] += movement[1]
@@ -157,8 +155,6 @@ class mindstormBotEnv(gym.Env):
 
         self.agent_pos[3] = self.max_range
         self.wheel_velocities += new_wheel_velocities.astype(float)
-        ###print the actions, initial agent pos and new agent pos:
-        print(f"New agent pos: {self.agent_pos}")
         collision = False   
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
