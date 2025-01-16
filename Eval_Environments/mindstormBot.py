@@ -56,7 +56,7 @@ class mindstormBotEnv(gym.Env):
         self.field_bounds_low = np.array([-0.8, 0], dtype=float)
         self.field_bounds_high = np.array([0.8, 2.5], dtype=float)
 
-        self.max_wheel_vel  = 2*self.collision_range/(2*self.param[1]*np.pi*self.param[2])
+        self.max_wheel_vel  = 2*self.collision_range/(self.param[1]*np.pi*self.param[2]/180)
         self.reward_range = (-float("inf"), float("inf"))
         self.goal_range = 0.15
 

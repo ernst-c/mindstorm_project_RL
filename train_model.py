@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     environment = 'mindstormBot-v0'
     eval_environment = 'mindstormBotEval-v0'
-    training_timesteps = 3000000
+    training_timesteps = 1000000
     
     n_envs = 16 
     env = make_vec_env(environment, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
