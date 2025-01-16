@@ -51,7 +51,7 @@ if __name__ == '__main__':
     env = make_vec_env(eval_environment, n_envs=16, vec_env_cls=SubprocVecEnv)
     env = VecVideoRecorder(env, video_folder,
                            record_video_trigger=lambda x: x == 0, video_length=video_length,
-                           name_prefix=f"random-agent")
+                           name_prefix=f"jan16")
     env.reset()
     for _ in range(video_length):
         actions = model.predict(obs)[0]
@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
 
     # Save the final trained model
-    run_name = "jan15"+"_"+str(training_timesteps)
+    run_name = "jan16"+"_"+str(training_timesteps)
     save_dir = "/Desktop/workspaces/mindstorm_project_RL/saved_models/"
     full_log_dir = os.path.join(save_dir, run_name)
     if not os.path.isdir(full_log_dir):
