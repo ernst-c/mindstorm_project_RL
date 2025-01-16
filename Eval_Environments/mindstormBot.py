@@ -18,7 +18,7 @@ class mindstormBotEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
     def __init__(self, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
-                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=cont_model, render_mode=None, param=np.array([0.3,0.1,0.05])):
+                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=cont_model, render_mode=None, param=np.array([0.3,0.2,0.1])):
 
         #rendering
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -36,6 +36,8 @@ class mindstormBotEnv(gym.Env):
         self.param = param
         #range finder
         self.max_range = 1
+        #collision
+        self.collision_range = 0.05
 
         # Define the wall's length
         self.wall_length = 0.4
@@ -50,6 +52,7 @@ class mindstormBotEnv(gym.Env):
             dtype=float
         )
         self.wheel_velocities = np.array([0, 0])
+        self.max_wheel_vel  = 2*self.collision_range/(2*self.param[1]*np.pi*self.param[2])
         self.reward_range = (-float("inf"), float("inf"))
         self.goal_range = 0.15
 
@@ -61,8 +64,6 @@ class mindstormBotEnv(gym.Env):
         self.spatial_index = STRtree(self.polygons)
         #rendering
         self.ray = LineString([(0,0),(0,0)])
-        #collision
-        self.collision_range = 0.01
 
         self.reset()
         self.seed()
@@ -155,6 +156,7 @@ class mindstormBotEnv(gym.Env):
 
         self.agent_pos[3] = self.max_range
         self.wheel_velocities += new_wheel_velocities.astype(float)
+        self.wheel_velocities = np.clip(self.wheel_velocities, -self.max_wheel_vel, self.max_wheel_vel)
         collision = False   
         if (self.spatial_index.query_nearest(Point(self.agent_pos[0], self.agent_pos[1]), return_distance=True)[1][0] < self.collision_range):
             collision = True
