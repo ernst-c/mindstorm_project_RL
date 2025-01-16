@@ -43,9 +43,9 @@ if __name__ == '__main__':
     #model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, clip_range=0.3 ,seed=None, tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
     #model = DQN('MlpPolicy', env, verbose=1, gamma=0.99,seed=None, batch_size=128,exploration_fraction=0.4, tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
     policy_kwargs = dict(
-        lstm_hidden_size=64           # Use a small hidden size, e.g., 1 or 2
+        lstm_hidden_size=256           # Use a small hidden size, e.g., 1 or 2
     )
-    model = RecurrentPPO("MlpLstmPolicy", env,n_steps=64,policy_kwargs=policy_kwargs, verbose=1,tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
+    model = RecurrentPPO("MlpLstmPolicy", env,n_steps=256,policy_kwargs=policy_kwargs, verbose=1,tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
 
     obs = env.reset()
     model.learn(training_timesteps, reset_num_timesteps=False)
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     env = make_vec_env(eval_environment, n_envs=16, vec_env_cls=SubprocVecEnv)
     env = VecVideoRecorder(env, video_folder,
                            record_video_trigger=lambda x: x == 0, video_length=video_length,
-                           name_prefix=f"jan16")
+                           name_prefix=f"jan16_1146")
     env.reset()
     for _ in range(video_length):
         action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
 
     # Save the final trained model
-    run_name = "jan16"+"_"+str(training_timesteps)
+    run_name = "jan16_1146"+"_"+str(training_timesteps)
     save_dir = "/Desktop/workspaces/mindstorm_project_RL/saved_models/"
     full_log_dir = os.path.join(save_dir, run_name)
     if not os.path.isdir(full_log_dir):

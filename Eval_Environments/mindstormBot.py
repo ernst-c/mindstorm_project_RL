@@ -15,10 +15,10 @@ import pygame
 from shapely.strtree import STRtree
 
 class mindstormBotEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 1/0.15}
 
     def __init__(self, goal_state=np.array([0, 1.45, 0, 0, 0], dtype=float),
-                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=cont_model, render_mode=None, param=np.array([0.3,0.2,0.1])):
+                 episode_steps=1000, rewardfunc=sparse_reward2d, eom=cont_model, render_mode=None, param=np.array([0.3,0.2,0.15])):
 
         #rendering
         assert render_mode is None or render_mode in self.metadata["render_modes"]
