@@ -10,3 +10,4 @@ __pycache__/
 .idea/
 .logs/
 continue_training.py
+render_model.py
