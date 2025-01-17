@@ -39,12 +39,10 @@ if __name__ == '__main__':
     else:
         print(f"Folder not found: {full_log_dir}")
 
-    #initialize and train model
-    #model = PPO('MlpPolicy', env, verbose=1, gamma=0.99, clip_range=0.3 ,seed=None, tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
-    #model = DQN('MlpPolicy', env, verbose=1, gamma=0.99,seed=None, batch_size=128,exploration_fraction=0.4, tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
     policy_kwargs = dict(
-        lstm_hidden_size=256           # Use a small hidden size, e.g., 1 or 2
+        lstm_hidden_size=256
     )
+    
     model = RecurrentPPO("MlpLstmPolicy", env,n_steps=256,policy_kwargs=policy_kwargs, verbose=1,tensorboard_log="/Desktop/workspaces/mindstorm_project_RL/logs/")
 
     obs = env.reset()
