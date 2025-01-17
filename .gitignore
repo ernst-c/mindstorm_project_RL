@@ -10,3 +10,5 @@
 .idea/
 render_model.py
 continue_training.py
+main.py
+/saved_models/
