@@ -8,3 +8,5 @@
 *.pyc
 *.zip
 .idea/
+render_model.py
+continue_training.py
