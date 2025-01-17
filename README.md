@@ -21,12 +21,12 @@ The agent outputs actions for the left and right wheel desired rotational veloci
     <table>
     <tr>
         <td align="center">
-        <img src="assets/gifs/discrete_action_space.gif" alt="discrete_action_space" title="discrete_action_space" width="390">
+        <img src="assets/gifs/discrete_action_space.gif" alt="discrete_action_space" title="discrete_action_space" width="385">
         <br>
         <b>Discrete action space</b>
         </td>
         <td align="center">
-        <img src="assets/gifs/continuous_action_space.gif" alt="continuous_action_space" title="continuous_action_space" width="390">
+        <img src="assets/gifs/continuous_action_space.gif" alt="continuous_action_space" title="continuous_action_space" width="385">
         <br>
         <b>Continuous action space</b>
         </td>
