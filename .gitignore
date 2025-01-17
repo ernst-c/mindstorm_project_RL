@@ -4,3 +4,9 @@
 /videos/
 /logs/
 /Gifs/
+/__pycache__/ 
+*.pyc
+*.zip
+.idea/
+render_model.py
+continue_training.py
